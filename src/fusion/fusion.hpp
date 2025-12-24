@@ -19,6 +19,7 @@
 
 #include "sensor_data/imu_data.hpp"
 #include "sensor_data/gnss_data.hpp"
+#include "sensor_data/nav_state.hpp"
 
 #include "common/point_types.h"
 #include "common/timer.hpp"
@@ -41,7 +42,12 @@ public:
   void ProcessRTK(GNSS::Ptr gnss);
   void ProcessIMU(IMU::Ptr imu);
   void ProcessPointCloud(CLOUD::Ptr cloud);
-  
+
+  //获取当前状态
+  NavStated::Ptr GetCurrentState() const;
+  FullCloudPtr GetCurrentScan() const;
+  MapLoader::Ptr GetMapLoader() const;
+
   //RTK状态
   enum class Status {
     WAITING_FOR_RTK,  //等待初始的RTK

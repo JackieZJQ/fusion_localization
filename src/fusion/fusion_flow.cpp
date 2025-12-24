@@ -16,19 +16,19 @@ FusionFlow::FusionFlow(const rclcpp::Node::SharedPtr& node)
 }
 
 void FusionFlow::InitIO() {
-  imu_subscriber_ = node_->create_subscription<sensor_msgs::msg::Imu>("/imu", 10, std::bind(&FusionFlow::imu_callback, this, std::placeholders::_1));
-  gnss_subscriber_ = node_->create_subscription<sensor_msgs::msg::NavSatFix>("/navsatfix", 10, std::bind(&FusionFlow::gnss_callback, this, std::placeholders::_1));
-  cloud_subscriber_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>("/rslidar_points", 10, std::bind(&FusionFlow::cloud_callback, this, std::placeholders::_1));
+  imu_subscriber_ = node_->create_subscription<sensor_msgs::msg::Imu>("/imu", 10, std::bind(&FusionFlow::ImuCallback, this, std::placeholders::_1));
+  gnss_subscriber_ = node_->create_subscription<sensor_msgs::msg::NavSatFix>("/navsatfix", 10, std::bind(&FusionFlow::GnssCallback, this, std::placeholders::_1));
+  cloud_subscriber_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>("/rslidar_points", 10, std::bind(&FusionFlow::CloudCallback, this, std::placeholders::_1));
 }
 
-void FusionFlow::imu_callback(const sensor_msgs::msg::Imu::SharedPtr imu_msg_ptr) {
+void FusionFlow::ImuCallback(const sensor_msgs::msg::Imu::SharedPtr imu_msg_ptr) {
   
   //转换为IMU格式
   IMU::Ptr imu = std::make_shared<localization::IMU>(imu_msg_ptr);
   fusion_ptr_->ProcessIMU(imu);
 }
 
-void FusionFlow::gnss_callback(const sensor_msgs::msg::NavSatFix::SharedPtr gnss_msg_ptr) {
+void FusionFlow::GnssCallback(const sensor_msgs::msg::NavSatFix::SharedPtr gnss_msg_ptr) {
 
   //转换为GNSS格式
   GNSS::Ptr gnss(new GNSS(gnss_msg_ptr));
@@ -40,7 +40,7 @@ void FusionFlow::gnss_callback(const sensor_msgs::msg::NavSatFix::SharedPtr gnss
   fusion_ptr_->ProcessRTK(gnss);
 }
 
-void FusionFlow::cloud_callback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud_msg_ptr) {
+void FusionFlow::CloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud_msg_ptr) {
 
   //转换为CLOUD格式
   //对点云数量做滤波

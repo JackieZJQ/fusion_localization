@@ -43,11 +43,6 @@ bool Fusion::InitIMU() {
   return true;
 }
 
-void Fusion::ProcessRTK(GNSS::Ptr gnss) {
-  gnss->utm_pose_.translation() -= map_origin_;  //减掉地图原点
-  last_gnss_ = gnss;
-}
-
 void Fusion::ProcessMeasurements(const MessageSync::MeasureGroup& meas) {
   //Timer timer("Fusion::ProcessMeasurements");
   measures_ = meas;
@@ -93,22 +88,22 @@ void Fusion::TryInitIMU() {
   }
 }
 
-void Fusion::InitIMUwithYaml() {
-  std::vector<double> init_bg = yaml_["imu"]["init_bg"].as<std::vector<double>>();
-  std::vector<double> init_ba = yaml_["imu"]["init_ba"].as<std::vector<double>>();
-  std::vector<double> gravity = yaml_["imu"]["gravity"].as<std::vector<double>>();
-  Vec3d init__ = math::VecFromArray(init_bg);
-  Mat3d init__ = math::MatFromArray(init_ba);
+// void Fusion::InitIMUwithYaml() {
+//   std::vector<double> init_bg = yaml_["imu"]["init_bg"].as<std::vector<double>>();
+//   std::vector<double> init_ba = yaml_["imu"]["init_ba"].as<std::vector<double>>();
+//   std::vector<double> gravity = yaml_["imu"]["gravity"].as<std::vector<double>>();
+//   Vec3d init__ = math::VecFromArray(init_bg);
+//   Mat3d init__ = math::MatFromArray(init_ba);
 
-  // 读取初始零偏，设置ESKF
-  localization::ESKFD::Options options;
-  // 噪声由初始化器估计
-  // options.gyro_var_ = sqrt(imu_init_.GetCovGyro()[0]);
-  // options.acce_var_ = sqrt(imu_init_.GetCovAcce()[0]);
-  options.update_bias_acce_ = false;
-  options.update_bias_gyro_ = false;
-  eskf_.SetInitialConditions(options, imu_init_.GetInitBg(), imu_init_.GetInitBa(), imu_init_.GetGravity());
-}
+//   // 读取初始零偏，设置ESKF
+//   localization::ESKFD::Options options;
+//   // 噪声由初始化器估计
+//   // options.gyro_var_ = sqrt(imu_init_.GetCovGyro()[0]);
+//   // options.acce_var_ = sqrt(imu_init_.GetCovAcce()[0]);
+//   options.update_bias_acce_ = false;
+//   options.update_bias_gyro_ = false;
+//   eskf_.SetInitialConditions(options, imu_init_.GetInitBg(), imu_init_.GetInitBa(), imu_init_.GetGravity());
+// }
 
 void Fusion::Predict() {
   imu_states_.clear();
@@ -287,8 +282,8 @@ bool Fusion::LidarLocalization() {
   // LOG(INFO) << "Lidar localization, transformation probaility: " << registration_manager_ptr_->GetTransformationProbaility()
   //           << ", fitness score: " << registration_manager_ptr_->GetFitnessScore() << "\n"
 
-  LOG(INFO) << "ndt  pose: " << pose_se3.translation().transpose()[0] << " " << pose_se3.translation().transpose()[1] << "\n";
-  LOG(INFO) << "gnss pose: " << last_gnss_->utm_pose_.translation().transpose()[0] << " " << last_gnss_->utm_pose_.translation().transpose()[1] << "\n";
+  // LOG(INFO) << "ndt  pose: " << pose_se3.translation().transpose()[0] << " " << pose_se3.translation().transpose()[1] << "\n";
+  // LOG(INFO) << "gnss pose: " << last_gnss_->utm_pose_.translation().transpose()[0] << " " << last_gnss_->utm_pose_.translation().transpose()[1] << "\n";
 
   return true;
 }
@@ -301,4 +296,22 @@ void Fusion::ProcessPointCloud(CLOUD::Ptr cloud) {
   sync_ptr_->ProcessCloud(cloud);
 }
 
+void Fusion::ProcessRTK(GNSS::Ptr gnss) {
+  gnss->utm_pose_.translation() -= map_origin_; //减掉地图原点
+  last_gnss_ = gnss;
+}
+
+NavStated::Ptr Fusion::GetCurrentState() const {
+  if (status_ == Status::WORKING) {
+    return std::make_shared<NavStated>(eskf_.GetNominalState());
+  }
+}
+
+FullCloudPtr Fusion::GetCurrentScan() const {
+  return scan_undistort_;
+}
+
+MapLoader::Ptr Fusion::GetMapLoader() const {
+  return map_loader_ptr_;
+}
 }  //namespace localization
