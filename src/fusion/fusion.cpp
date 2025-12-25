@@ -237,7 +237,7 @@ void Fusion::Align() {
     if (last_gnss_ != nullptr) {
       if (SearchRTK()) {
         // 搜索成功，切换到工作状态
-        status_ == Status::WORKING;
+        status_ = Status::WORKING;
         
         // 更新可视化
         ui_ptr_->UpdateScan(current_scan_, eskf_.GetNominalSE3());
