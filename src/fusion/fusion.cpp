@@ -105,66 +105,150 @@ void Fusion::TryInitIMU() {
 //   eskf_.SetInitialConditions(options, imu_init_.GetInitBg(), imu_init_.GetInitBa(), imu_init_.GetGravity());
 // }
 
+/**
+ * @brief 使用IMU数据进行状态预测
+ * 
+ * 功能：
+ * 1. 清空之前的预测状态列表
+ * 2. 保存当前ESKF状态作为起始状态
+ * 3. 对每个IMU数据调用ESKF预测
+ * 4. 保存每次预测后的状态（用于点云去畸变）
+ * 
+ * 原理：
+ * IMU频率高（100-200Hz），LiDAR扫描一帧需要时间（~100ms）
+ * 在一帧点云扫描期间，会有多个IMU测量
+ * 通过逐次预测，可以得到扫描期间的连续运动轨迹
+ * 
+ * 注意：
+ * 预测状态存储在imu_states_中，供Undistort()函数使用
+ */
 void Fusion::Predict() {
+  // 清空之前的预测状态
   imu_states_.clear();
+  
+  // 保存起始状态
   imu_states_.emplace_back(eskf_.GetNominalState());
 
-  //对IMU状态进行预测
+  // 对每个IMU数据进行预测
   for (auto& imu : measures_.imu_) {
+    // ESKF预测：根据IMU测量更新位置、速度、姿态
     eskf_.Predict(*imu);
+    
+    // 保存预测后的状态
     imu_states_.emplace_back(eskf_.GetNominalState());
 
-    //todo
-    //需要每一次predict()一次，发布一次状态吗？
+    // TODO: 是否需要每次predict()后都发布一次状态？
   }
 }
 
+/**
+ * @brief 对点云进行畸变矫正（运动补偿）
+ * 
+ * 功能：
+ * 对点云中的每个点进行运动补偿，将其转换到扫描结束时刻的坐标系
+ * 
+ * 原理：
+ * LiDAR扫描一帧需要时间（如100ms），在此期间车辆在运动
+ * 不同时刻扫描的点在不同位置，直接使用会产生"拖影"（畸变）
+ * 需要根据运动轨迹将所有点统一到同一时刻（通常是扫描结束时刻）
+ * 
+ * 算法流程：
+ * 1. 获取扫描结束时刻的位姿 T_end
+ * 2. 对每个点：
+ *    a. 根据点的时间戳在imu_states_中插值得到该时刻位姿 Ti
+ *    b. 计算补偿变换：TIL^-1 * T_end^-1 * Ti * TIL
+ *    c. 将点从LiDAR坐标系变换到IMU坐标系，再应用补偿变换
+ * 3. 更新点的坐标
+ * 
+ * 注意：
+ * - pt.time: 点的时间戳（相对扫描开始时间，单位毫秒）
+ * - TIL_: LiDAR到IMU的外参变换
+ * - 使用并行算法（std::execution::par_unseq）加速处理
+ */
 void Fusion::Undistort() {
   auto cloud = measures_.lidar_;
-  auto imu_state = eskf_.GetNominalState();  //最后时刻的状态
+  
+  // 获取扫描结束时刻的IMU状态
+  auto imu_state = eskf_.GetNominalState();
   SE3 T_end = SE3(imu_state.R_, imu_state.p_);
 
-  //将所有点转到最后时刻状态上
+  // 并行处理：将所有点转换到扫描结束时刻
   std::for_each(std::execution::par_unseq, cloud->points.begin(), cloud->points.end(), [&](auto& pt) {
-    SE3 Ti = T_end;
-    NavStated match;
+    SE3 Ti = T_end;  // 该点对应时刻的位姿
+    NavStated match; // 插值匹配的状态
 
-    //根据pt.time查找时间，pt.time是该点打到的时间与雷达开始时间之差，单位为毫秒
+    // 根据点的时间戳在IMU状态序列中插值
+    // pt.time: 该点相对扫描开始的时间（毫秒）
     math::PoseInterp<NavStated>(
-      measures_.lidar_begin_time_ + pt.time * 1e-3, imu_states_, [](const NavStated& s) { return s.timestamp_; },
-      [](const NavStated& s) { return s.GetSE3(); }, Ti, match);
+      measures_.lidar_begin_time_ + pt.time * 1e-3,  // 点的绝对时间戳
+      imu_states_,                                    // IMU预测状态序列
+      [](const NavStated& s) { return s.timestamp_; }, // 获取状态时间戳
+      [](const NavStated& s) { return s.GetSE3(); },   // 获取状态位姿
+      Ti,                                             // 输出：插值得到的位姿
+      match);                                         // 输出：匹配的状态
 
+    // 计算点的坐标
     Vec3d pi = ToVec3d(pt);
+    
+    // 运动补偿变换：
+    // TIL^-1: IMU -> LiDAR
+    // T_end^-1: 结束时刻世界坐标系 -> 结束时刻IMU坐标系
+    // Ti: 当前时刻IMU坐标系 -> 当前时刻世界坐标系
+    // TIL: LiDAR -> IMU
     Vec3d p_compensate = TIL_.inverse() * T_end.inverse() * Ti * TIL_ * pi;
 
+    // 更新点坐标
     pt.x = p_compensate(0);
     pt.y = p_compensate(1);
     pt.z = p_compensate(2);
   });
 
+  // 保存去畸变后的点云
   scan_undistort_ = cloud;
 }
 
+/**
+ * @brief 执行点云配准并更新状态
+ * 
+ * 功能：
+ * 1. 将去畸变的点云转换到IMU坐标系
+ * 2. 点云降采样（体素滤波）
+ * 3. 根据系统状态执行不同操作：
+ *    - WAITING_FOR_RTK: 尝试RTK初始化（网格搜索）
+ *    - WORKING: 执行正常的激光定位
+ * 4. 更新可视化界面
+ * 
+ * 状态机：
+ * WAITING_FOR_RTK -> (搜索成功) -> WORKING
+ */
 void Fusion::Align() {
+  // 将点云从LiDAR坐标系转换到IMU坐标系
   FullCloudPtr scan_undistort_trans(new FullPointCloudType);
   pcl::transformPointCloud(*scan_undistort_, *scan_undistort_trans, TIL_.matrix());
   scan_undistort_ = scan_undistort_trans;
+  
+  // 转换点云格式并进行体素滤波降采样（体素大小0.5m）
   current_scan_ = ConvertToCloud<FullPointType>(scan_undistort_);
   current_scan_ = VoxelCloud(current_scan_, 0.5);
 
+  // 根据系统状态执行不同操作
   if (status_ == Status::WAITING_FOR_RTK) {
-    //若存在最近的RTK信号，则尝试初始化
+    // 初始化阶段：若存在最近的RTK信号，则尝试初始化
     if (last_gnss_ != nullptr) {
       if (SearchRTK()) {
+        // 搜索成功，切换到工作状态
         status_ == Status::WORKING;
         
+        // 更新可视化
         ui_ptr_->UpdateScan(current_scan_, eskf_.GetNominalSE3());
         ui_ptr_->UpdateNavState(eskf_.GetNominalState());
       }
     }
   } else {
+    // 工作阶段：执行正常的激光定位
     LidarLocalization();
     
+    // 更新可视化
     ui_ptr_->UpdateScan(current_scan_, eskf_.GetNominalSE3());
     ui_ptr_->UpdateNavState(eskf_.GetNominalState());
   }
