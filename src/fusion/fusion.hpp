@@ -35,6 +35,8 @@ public:
   Fusion() = delete;
   Fusion(const YAML::Node& yaml);
 
+  ~Fusion() = default;
+
   bool InitConfig();
   bool InitIMU();
 

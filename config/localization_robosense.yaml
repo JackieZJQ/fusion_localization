@@ -1,6 +1,6 @@
 YAML: 1.0
 
-map_data: /home/jackie/slam_gaoxiang/slam_in_autonomous_driving/data/ch9/map_data/
+map_data: /home/jackie/robobus_localization/map_data/
 origin:
   - 630224.5820145458
   - 3480549.440772983

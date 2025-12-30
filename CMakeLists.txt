@@ -17,6 +17,7 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(PCL REQUIRED)
 find_package(pcl_conversions REQUIRED)
@@ -43,7 +44,7 @@ file(GLOB_RECURSE NODE_SRCS "src/app/fusion_node.cpp")
 list(REMOVE_ITEM ALL_SRCS ${NODE_SRCS})
 
 add_executable(fusion_localization_node "src/app/fusion_node.cpp" ${ALL_SRCS} ${UTM_CONVERT_SRCS})
-ament_target_dependencies(fusion_localization_node rclcpp sensor_msgs pcl_conversions ndt_omp OpenMP)
+ament_target_dependencies(fusion_localization_node rclcpp sensor_msgs nav_msgs pcl_conversions ndt_omp OpenMP)
 target_link_libraries(fusion_localization_node ${PCL_LIBRARIES} ${GLOG_LIBRARIES} ${OpenCV_LIBS} ${Pangolin_LIBRARIES} TBB::tbb yaml-cpp)
 
 install(TARGETS

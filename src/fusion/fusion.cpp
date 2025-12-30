@@ -58,6 +58,7 @@ void Fusion::ProcessMeasurements(const MessageSync::MeasureGroup& meas) {
     Undistort();
   } else {
     scan_undistort_ = measures_.lidar_;
+    scan_undistort_->header.stamp = static_cast<uint64_t>(measures_.lidar_begin_time_ * 1e6);
   }
 
   Align();
@@ -143,6 +144,7 @@ void Fusion::Undistort() {
   });
 
   scan_undistort_ = cloud;
+
 }
 
 void Fusion::Align() {
@@ -279,12 +281,6 @@ bool Fusion::LidarLocalization() {
   SE3 pose_se3 = Mat4ToSE3(result_pose);
   eskf_.ObserveSE3(pose_se3, 1e-1, 1e-2);
 
-  // LOG(INFO) << "Lidar localization, transformation probaility: " << registration_manager_ptr_->GetTransformationProbaility()
-  //           << ", fitness score: " << registration_manager_ptr_->GetFitnessScore() << "\n"
-
-  // LOG(INFO) << "ndt  pose: " << pose_se3.translation().transpose()[0] << " " << pose_se3.translation().transpose()[1] << "\n";
-  // LOG(INFO) << "gnss pose: " << last_gnss_->utm_pose_.translation().transpose()[0] << " " << last_gnss_->utm_pose_.translation().transpose()[1] << "\n";
-
   return true;
 }
 
@@ -304,6 +300,9 @@ void Fusion::ProcessRTK(GNSS::Ptr gnss) {
 NavStated::Ptr Fusion::GetCurrentState() const {
   if (status_ == Status::WORKING) {
     return std::make_shared<NavStated>(eskf_.GetNominalState());
+  } else {
+    //todo
+    //未初始化下，应该执行的操作
   }
 }
 

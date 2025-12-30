@@ -16,7 +16,10 @@
 namespace localization {
 class FusionFlow {
 public:
+  FusionFlow() = delete;
   FusionFlow(const rclcpp::Node::SharedPtr& node);
+
+  ~FusionFlow() = default;
 
   void InitIO();
 
@@ -39,9 +42,10 @@ private:
   rclcpp::Subscription<sensor_msgs::msg::NavSatFix>::SharedPtr gnss_subscriber_;
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_subscriber_;
 
-  //
+  //发布定位数据
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr current_scan_publisher_;
-  
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map_publisher_;
+  rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odometry_publisher_;
 
   CloudConvert::Ptr cloud_converter_ptr_;
   std::shared_ptr<Fusion> fusion_ptr_;
