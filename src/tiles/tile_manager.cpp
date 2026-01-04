@@ -24,7 +24,9 @@ TileManager::TileManager(const YAML::Node& yaml) {
   map_tiles_root_dir_  = yaml["map_data"].as<std::string>();
   
   //加载地图索引
-  LoadAvailableTileIndices();
+  if(!LoadAvailableTileIndices()) {
+    LOG(ERROR) << "Failed to load available tile indices from " + map_tiles_root_dir_ + "/map_index.txt";
+  }
 
   tile_thread_should_run_.store(true, std::memory_order_release);
   tile_management_thread_ = std::thread(&TileManager::BackgroundTileManagementLoop, this);
@@ -142,6 +144,8 @@ CloudPtr TileManager::LoadTileFromDisk(const Vec2i& index) {
 void TileManager::BackgroundTileManagementLoop() {
   LOG(INFO) << "TileManager worker started.";
 
+  //todo
+  //loaded_tiles的逻辑有问题
   while (tile_thread_should_run_.load(std::memory_order_acquire)) {
     //每50ms检查一次pose是否更新
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -194,6 +198,8 @@ void TileManager::BackgroundTileManagementLoop() {
       //从磁盘中加载地图区块
       if (loaded_tiles.find(indice) == loaded_tiles.end()) {
         CloudPtr cloud = LoadTileFromDisk(indice);
+        if (cloud == nullptr) continue; //空指针直接跳过
+
         loaded_tiles.emplace(indice, cloud);
         has_loaded_tiles_changed = true;
         cnt_new_loaded_tiles++;

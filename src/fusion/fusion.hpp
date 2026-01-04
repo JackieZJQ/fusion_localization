@@ -27,7 +27,7 @@
 #include "common/eigen_types.hpp"
 
 #include "ui/pangolin_window.hpp"
-#include "map/map_loader.hpp"
+#include "tiles/tile_manager.hpp"
 
 namespace localization {
 class Fusion {
@@ -48,7 +48,7 @@ public:
   //获取当前状态
   NavStated::Ptr GetCurrentState() const;
   FullCloudPtr GetCurrentScan() const;
-  MapLoader::Ptr GetMapLoader() const;
+  TileManager::Ptr GetTileManager() const;
 
   //RTK状态
   enum class Status {
@@ -120,7 +120,7 @@ private:
   double rtk_search_min_score_ = 4.5;
 
   //点云地图区块管理
-  MapLoader::Ptr map_loader_ptr_ = nullptr;
+  TileManager::Ptr tile_manager_ptr_ = nullptr;
 
   std::shared_ptr<ui::PangolinWindow> ui_ptr_ = nullptr; //ui
 

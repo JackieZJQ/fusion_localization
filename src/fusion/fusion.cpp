@@ -5,7 +5,7 @@ Fusion::Fusion(const YAML::Node& yaml)
   : yaml_(yaml) {
 
   registration_manager_ptr_ = std::make_shared<RegistrationManager>(yaml_);
-  map_loader_ptr_ = std::make_shared<MapLoader>(yaml_);
+  tile_manager_ptr_ = std::make_shared<TileManager>(yaml_);
 
   InitConfig();
   InitIMU();
@@ -182,16 +182,16 @@ bool Fusion::SearchRTK() {
 
   //由于RTK不带姿态，我们必须先搜索一定的角度范围
   std::vector<GridSearchResult> search_poses;
-  map_loader_ptr_->UpdatePose(last_gnss_->utm_pose_);
+  tile_manager_ptr_->UpdateCurrentPose(last_gnss_->utm_pose_);
   
-  if (!map_loader_ptr_->MapInitialized()) {
+  if (!tile_manager_ptr_->HasMapInitialized()) {
     LOG(INFO) << "map uninitialized";
     return false;
   }
 
-  if (map_loader_ptr_->MapChanged()) {
-    CloudPtr ref_cloud = map_loader_ptr_->GetRefCloud();
-    std::map<Vec2i, CloudPtr, less_vec<2>> map_data = map_loader_ptr_->GetMapData();
+  if (tile_manager_ptr_->HasMapChanged()) {
+    CloudPtr ref_cloud = tile_manager_ptr_->GetRefCloud();
+    std::map<Vec2i, CloudPtr, less_vec<2>> map_data = tile_manager_ptr_->GetLoadedTiles();
 
     registration_manager_ptr_->UpdateRefCloud(ref_cloud);
     ui_ptr_->UpdatePointCloudGlobal(map_data);
@@ -246,7 +246,7 @@ void Fusion::AlignForGrid(GridSearchResult& gr) {
   ndt.setMaximumIterations(40);
 
   ndt.setInputSource(current_scan_);
-  auto map = map_loader_ptr_->GetRefCloud();
+  auto map = tile_manager_ptr_->GetRefCloud();
 
   CloudPtr output(new PointCloudType);
   std::vector<double> res{10.0, 5.0, 4.0, 3.0};
@@ -265,10 +265,10 @@ void Fusion::AlignForGrid(GridSearchResult& gr) {
 
 bool Fusion::LidarLocalization() {
   SE3 pred = eskf_.GetNominalSE3();
-  map_loader_ptr_->UpdatePose(pred);
-  if (map_loader_ptr_->MapChanged()) {
-    CloudPtr ref_cloud = map_loader_ptr_->GetRefCloud();
-    std::map<Vec2i, CloudPtr, less_vec<2>> map_data = map_loader_ptr_->GetMapData();
+  tile_manager_ptr_->UpdateCurrentPose(pred);
+  if (tile_manager_ptr_->HasMapChanged()) {
+    CloudPtr ref_cloud = tile_manager_ptr_->GetRefCloud();
+    std::map<Vec2i, CloudPtr, less_vec<2>> map_data = tile_manager_ptr_->GetLoadedTiles();
 
     registration_manager_ptr_->UpdateRefCloud(ref_cloud);
     ui_ptr_->UpdatePointCloudGlobal(map_data);
@@ -310,7 +310,7 @@ FullCloudPtr Fusion::GetCurrentScan() const {
   return scan_undistort_;
 }
 
-MapLoader::Ptr Fusion::GetMapLoader() const {
-  return map_loader_ptr_;
+TileManager::Ptr Fusion::GetTileManager() const {
+  return tile_manager_ptr_;
 }
 }  //namespace localization

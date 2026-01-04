@@ -27,7 +27,7 @@ public:
   TileManager() = delete;
   TileManager(const YAML::Node& yaml);
   
-  ~TileManager() = default;
+  ~TileManager();
 
   void UpdateCurrentPose(const SE3& pose);
   bool HasMapChanged();
