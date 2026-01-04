@@ -9,11 +9,6 @@ Fusion::Fusion(const YAML::Node& yaml)
 
   InitConfig();
   InitIMU();
-
-  //ui初始化
-  ui_ptr_ = std::make_shared<ui::PangolinWindow>();
-  ui_ptr_->Init();
-  ui_ptr_->SetCurrentScanSize(50);
 }
 
 bool Fusion::InitConfig() {
@@ -164,15 +159,13 @@ void Fusion::Align() {
       if (SearchRTK()) {
         status_ == Status::WORKING;
         
-        ui_ptr_->UpdateScan(current_scan_, eskf_.GetNominalSE3());
-        ui_ptr_->UpdateNavState(eskf_.GetNominalState());
+        //更新UI
       }
     }
   } else {
     LidarLocalization();
     
-    ui_ptr_->UpdateScan(current_scan_, eskf_.GetNominalSE3());
-    ui_ptr_->UpdateNavState(eskf_.GetNominalState());
+    //更新UI
   }
 }
 
@@ -198,7 +191,7 @@ bool Fusion::SearchRTK() {
     std::map<Vec2i, CloudPtr, less_vec<2>> map_data = tile_manager_ptr_->GetLoadedTiles();
 
     registration_manager_ptr_->UpdateRefCloud(ref_cloud);
-    ui_ptr_->UpdatePointCloudGlobal(map_data);
+    //更新UI
   }
 
   //由于RTK不带角度，这里按固定步长扫描RTK角度
@@ -275,7 +268,7 @@ bool Fusion::LidarLocalization() {
     std::map<Vec2i, CloudPtr, less_vec<2>> map_data = tile_manager_ptr_->GetLoadedTiles();
 
     registration_manager_ptr_->UpdateRefCloud(ref_cloud);
-    ui_ptr_->UpdatePointCloudGlobal(map_data);
+    //更新UI
   }
 
   Eigen::Matrix4f pred_pose = pred.matrix().cast<float>();

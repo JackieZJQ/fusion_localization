@@ -26,7 +26,6 @@
 #include "common/lidar_utils.hpp"
 #include "common/eigen_types.hpp"
 
-#include "ui/pangolin_window.hpp"
 #include "tiles/tile_manager.hpp"
 
 namespace localization {
@@ -75,6 +74,7 @@ private:
   bool LidarLocalization();   //激光定位
 
   void InitImuOnline();   //在线估计IMU初始零偏
+
   void InitImuOffline();  //离线估计IMU初始零偏，使用yaml中的配置
 
   //利用IMU预测状态信息
@@ -120,8 +120,6 @@ private:
 
   //点云地图区块管理
   TileManager::Ptr tile_manager_ptr_ = nullptr;
-
-  std::shared_ptr<ui::PangolinWindow> ui_ptr_ = nullptr; //ui
 
   YAML::Node yaml_; //参数配置
 };

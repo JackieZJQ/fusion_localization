@@ -51,8 +51,6 @@ private:
   std::shared_ptr<Fusion> fusion_ptr_;
   rclcpp::Node::SharedPtr node_;
 
-  //todo
-  //发布rviz信息(*^__^*) 嘻嘻…
 };
 } // namesapce localization
 
