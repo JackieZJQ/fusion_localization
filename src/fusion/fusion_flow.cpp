@@ -1,3 +1,16 @@
+/**
+ * ************************************************************************
+ * 
+ * @file fusion_flow.cpp
+ * @author Zhang Jiaqi (zhangiaii97@gmail.com)
+ * @brief 
+ * 
+ * ************************************************************************
+ * @copyright Copyright (c) 2026
+ * For study and research only, no reprinting
+ * ************************************************************************
+ */
+
 #include "fusion/fusion_flow.hpp"
 #include "common/point_types.h"
 
@@ -13,19 +26,32 @@ FusionFlow::FusionFlow(const rclcpp::Node::SharedPtr& node)
   fusion_ptr_ = std::make_shared<Fusion>(yaml);
   cloud_converter_ptr_ = std::make_shared<CloudConvert>(yaml);
 
+  //NEW创建回调组
+  sensor_cb_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+  map_cb_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+
   InitIO();
 }
 
 void FusionFlow::InitIO() {
+  //订阅（共用同一 MutuallyExclusive 回调组，串行处理）
+  rclcpp::SubscriptionOptions sensor_opts;
+  sensor_opts.callback_group = sensor_cb_group_;
+
   //订阅传感器消息
-  imu_subscriber_ = node_->create_subscription<sensor_msgs::msg::Imu>("/imu", 10, std::bind(&FusionFlow::ImuCallback, this, std::placeholders::_1));
-  gnss_subscriber_ = node_->create_subscription<sensor_msgs::msg::NavSatFix>("/navsatfix", 10, std::bind(&FusionFlow::GnssCallback, this, std::placeholders::_1));
-  cloud_subscriber_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>("/rslidar_points", 10, std::bind(&FusionFlow::CloudCallback, this, std::placeholders::_1));
+  imu_subscriber_ = node_->create_subscription<sensor_msgs::msg::Imu>("/imu", 10, std::bind(&FusionFlow::ImuCallback, this, std::placeholders::_1), sensor_opts);
+  gnss_subscriber_ = node_->create_subscription<sensor_msgs::msg::NavSatFix>("/navsatfix", 10, std::bind(&FusionFlow::GnssCallback, this, std::placeholders::_1), sensor_opts);
+  cloud_subscriber_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>("/rslidar_points", 10, std::bind(&FusionFlow::CloudCallback, this, std::placeholders::_1), sensor_opts);
 
   //发布定位数据
   current_scan_publisher_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("/current_scan_undistorted", 10);
-  map_publisher_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("/map", 10);
   odometry_publisher_ = node_->create_publisher<nav_msgs::msg::Odometry>("/odometry", 10);
+  localization_publisher_ = node_->create_publisher<std_msgs::msg::Float64MultiArray>("/gps", 10);
+
+  //大地图发布（使用 Reentrant 回调组，可并行处理）
+  rclcpp::QoS map_qos(rclcpp::KeepLast(1));
+  map_qos.transient_local().reliable();
+  map_publisher_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("/map", map_qos);
 }
 
 void FusionFlow::ImuCallback(const sensor_msgs::msg::Imu::SharedPtr imu_msg_ptr) {
@@ -68,14 +94,14 @@ void FusionFlow::PublishCurrentScan() {
   pcl::toROSMsg(*current_scan_undistorted, cloud_msg);
   cloud_msg.header.frame_id = "rslidar";
   cloud_msg.header.stamp.sec = current_scan_undistorted->header.stamp / 1000000;
-  cloud_msg.header.stamp.sec = (current_scan_undistorted->header.stamp % 1000000) * 1000;
+  cloud_msg.header.stamp.nanosec = (current_scan_undistorted->header.stamp % 1000000) * 1000;
 
   current_scan_publisher_->publish(cloud_msg);
 }
 
 void FusionFlow::PublishMap() { 
   //todo
-
+  
 }
 
 void FusionFlow::PublishOdom() {

@@ -18,6 +18,8 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 find_package(ament_cmake REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(PCL REQUIRED)
 find_package(pcl_conversions REQUIRED)
@@ -28,6 +30,9 @@ find_package(TBB REQUIRED)
 find_package(Pangolin REQUIRED)
 find_package(ndt_omp REQUIRED)
 find_package(OpenMP REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 
 include_directories(${PROJECT_SOURCE_DIR}
                     ${PROJECT_SOURCE_DIR}/src
@@ -44,12 +49,33 @@ file(GLOB_RECURSE NODE_SRCS "src/app/fusion_node.cpp")
 list(REMOVE_ITEM ALL_SRCS ${NODE_SRCS})
 
 add_executable(fusion_localization_node "src/app/fusion_node.cpp" ${ALL_SRCS} ${UTM_CONVERT_SRCS})
-ament_target_dependencies(fusion_localization_node rclcpp sensor_msgs nav_msgs pcl_conversions ndt_omp OpenMP)
-target_link_libraries(fusion_localization_node ${PCL_LIBRARIES} ${GLOG_LIBRARIES} ${OpenCV_LIBS} ${Pangolin_LIBRARIES} TBB::tbb yaml-cpp)
+ament_target_dependencies(fusion_localization_node 
+  rclcpp 
+  sensor_msgs 
+  nav_msgs
+  std_msgs
+  geometry_msgs
+  tf2
+  tf2_ros
+  tf2_geometry_msgs 
+  pcl_conversions 
+  ndt_omp 
+  OpenMP)
+target_link_libraries(fusion_localization_node 
+  ${PCL_LIBRARIES} 
+  ${GLOG_LIBRARIES} 
+  ${OpenCV_LIBS} 
+  ${Pangolin_LIBRARIES} 
+  TBB::tbb 
+  yaml-cpp)
 
 install(TARGETS
   fusion_localization_node
   DESTINATION lib/${PROJECT_NAME}
 )
+
+# 安装 launch 文件
+install(DIRECTORY launch
+  DESTINATION share/${PROJECT_NAME})
 
 ament_package()

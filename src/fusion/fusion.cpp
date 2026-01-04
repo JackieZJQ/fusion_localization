@@ -1,3 +1,16 @@
+/**
+ * ************************************************************************
+ * 
+ * @file fusion.cpp
+ * @author Zhang Jiaqi (zhangiaii97@gmail.com)
+ * @brief 融合定位核心流程
+ * 
+ * ************************************************************************
+ * @copyright Copyright (c) 2026
+ * For study and research only, no reprinting
+ * ************************************************************************
+ */
+
 #include "fusion/fusion.hpp"
 
 namespace localization {
@@ -18,7 +31,9 @@ bool Fusion::InitConfig() {
 
   //lidar和IMU消息同步
   //捕获此类的ProcessMeasurements, 传递给MessageSync类
-  sync_ptr_ = std::make_shared<MessageSync>([this](const MessageSync::MeasureGroup &m) { ProcessMeasurements(m); });
+  sync_ptr_ = std::make_shared<MessageSync>([this](const MessageSync::MeasureGroup &m) { 
+    ProcessMeasurements(m); 
+  });
 
   //lidar和IMU外参
   std::vector<double> ext_t = yaml_["mapping"]["extrinsic_T"].as<std::vector<double>>();
@@ -31,11 +46,20 @@ bool Fusion::InitConfig() {
 }
 
 bool Fusion::InitIMU() {
-  StaticIMUInit::Options imu_init_options;
-  imu_init_options.use_speed_for_static_checking_ = false; //暂时不用轮速计
-  imu_init_ = StaticIMUInit(imu_init_options);
 
-  return true;
+  bool init_imu_online = yaml_["imu"]["init_imu_online"].as<bool>();
+  if (init_imu_online) {
+    //在线初始化
+    StaticIMUInit::Options imu_init_options;
+    imu_init_options.use_speed_for_static_checking_ = false; //暂时不用轮速计
+    imu_init_ = StaticIMUInit(imu_init_options);
+    
+    return true;
+  } else {
+    //使用YAML文件初始化IMU
+    InitImuOffline();
+    return true;
+  }
 }
 
 void Fusion::ProcessMeasurements(const MessageSync::MeasureGroup& meas) {
@@ -43,7 +67,7 @@ void Fusion::ProcessMeasurements(const MessageSync::MeasureGroup& meas) {
   measures_ = meas;
 
   if (imu_need_init_) {
-    InitImuOffline();
+    InitImuOnline();
     return;
   }
 
@@ -75,13 +99,11 @@ void Fusion::InitImuOnline() {
     options.update_bias_gyro_ = false;
     eskf_.SetInitialConditions(options, imu_init_.GetInitBg(), imu_init_.GetInitBa(), imu_init_.GetGravity());
     imu_need_init_ = false;
-
-    LOG(INFO) << "IMU初始化成功";
+  
+    LOG(INFO) << "IMU在线初始化成功";
 
     //todo
     //imu初始化成功后，把数据记录于yaml文件中
-    
-
   }
 }
 
@@ -102,7 +124,13 @@ void Fusion::InitImuOffline() {
   
   imu_need_init_ = false;
 
-  LOG(INFO) << "IMU初始化成功";
+  LOG(INFO) << "\n"
+            << "###############################################\n"
+            << "###############使用YAML初始化IMU成功############\n"
+            << "Init Bg: " << init_bg.transpose() << "\n"
+            << "Init Ba: " << init_ba.transpose() << "\n"
+            << "Gravity: " << gravity.transpose() << "\n"
+            << "###############################################";
 }
 
 void Fusion::Predict() {

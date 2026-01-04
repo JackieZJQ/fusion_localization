@@ -1,3 +1,16 @@
+/**
+ * ************************************************************************
+ * 
+ * @file fusion_flow.hpp
+ * @author Zhang Jiaqi (zhangiaii97@gmail.com)
+ * @brief 
+ * 
+ * ************************************************************************
+ * @copyright Copyright (c) 2026
+ * For study and research only, no reprinting
+ * ************************************************************************
+ */
+
 #pragma once 
 
 #include <rclcpp/rclcpp.hpp>
@@ -5,6 +18,7 @@
 #include <sensor_msgs/msg/nav_sat_fix.hpp>
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <nav_msgs/msg/odometry.hpp>
+#include <std_msgs/msg/float64_multi_array.hpp>
 
 #include "models/converter/cloud_convert.hpp"
 #include "models/converter/utm_convert.hpp"
@@ -32,6 +46,7 @@ private:
   void CloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud_msg_ptr);
 
   //发布rviz消息
+  void PublishLocalization();
   void PublishCurrentScan();
   void PublishMap();
   void PublishOdom();
@@ -46,11 +61,16 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr current_scan_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map_publisher_;
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odometry_publisher_;
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr localization_publisher_;
 
   CloudConvert::Ptr cloud_converter_ptr_;
   std::shared_ptr<Fusion> fusion_ptr_;
   rclcpp::Node::SharedPtr node_;
+  rclcpp::TimerBase::SharedPtr publish_timer_;
 
+  // 回调组
+  rclcpp::CallbackGroup::SharedPtr sensor_cb_group_; // IMU/GNSS/Cloud 串行
+  rclcpp::CallbackGroup::SharedPtr map_cb_group_;    // 地图发布可并行
 };
 } // namesapce localization
 
