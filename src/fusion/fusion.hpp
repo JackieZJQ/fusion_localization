@@ -74,9 +74,8 @@ private:
 
   bool LidarLocalization();   //激光定位
 
-  void TryInitIMU(); //使用IMU初始化
-
-  void InitIMUwithYaml();
+  void InitImuOnline();   //在线估计IMU初始零偏
+  void InitImuOffline();  //离线估计IMU初始零偏，使用yaml中的配置
 
   //利用IMU预测状态信息
   //这段时间的预测数据会放入imu_states_里
@@ -96,7 +95,7 @@ private:
   std::string data_path_;                            //地图数据目录
 
   std::shared_ptr<MessageSync> sync_ptr_ = nullptr;  //消息同步器
-  StaticIMUInit imu_init_;                       //IMU静止初始化
+  StaticIMUInit imu_init_;                           //IMU静止初始化
 
   //滤波器
   ESKFD eskf_;

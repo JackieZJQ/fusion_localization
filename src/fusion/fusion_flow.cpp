@@ -7,7 +7,7 @@ FusionFlow::FusionFlow(const rclcpp::Node::SharedPtr& node)
   
   //todo
   //yaml文件的地址写入cmakelists文件
-  const std::string config_path = "/home/jackie/robobus_localization/fusion_localization_ws/src/fusion_localization/config/mapping_robosense.yaml";
+  const std::string config_path = "/home/jackie/robobus_localization/fusion_localization_ws/src/fusion_localization/config/localization_robosense.yaml";
   auto yaml = YAML::LoadFile(config_path);
 
   fusion_ptr_ = std::make_shared<Fusion>(yaml);

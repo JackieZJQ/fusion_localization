@@ -48,7 +48,7 @@ void Fusion::ProcessMeasurements(const MessageSync::MeasureGroup& meas) {
   measures_ = meas;
 
   if (imu_need_init_) {
-    TryInitIMU();
+    InitImuOffline();
     return;
   }
 
@@ -64,7 +64,7 @@ void Fusion::ProcessMeasurements(const MessageSync::MeasureGroup& meas) {
   Align();
 }
 
-void Fusion::TryInitIMU() {
+void Fusion::InitImuOnline() {
   for (auto imu : measures_.imu_) {
     //每一次ADDIMU后，都会计算是否符合初始化条件，如果符合，则计算IMU初始化数据
     imu_init_.AddIMU(*imu); 
@@ -85,26 +85,30 @@ void Fusion::TryInitIMU() {
 
     //todo
     //imu初始化成功后，把数据记录于yaml文件中
+    
 
   }
 }
 
-// void Fusion::InitIMUwithYaml() {
-//   std::vector<double> init_bg = yaml_["imu"]["init_bg"].as<std::vector<double>>();
-//   std::vector<double> init_ba = yaml_["imu"]["init_ba"].as<std::vector<double>>();
-//   std::vector<double> gravity = yaml_["imu"]["gravity"].as<std::vector<double>>();
-//   Vec3d init__ = math::VecFromArray(init_bg);
-//   Mat3d init__ = math::MatFromArray(init_ba);
+void Fusion::InitImuOffline() {
+  std::vector<double> init_bg_array = yaml_["imu"]["init_bg"].as<std::vector<double>>();
+  std::vector<double> init_ba_array = yaml_["imu"]["init_ba"].as<std::vector<double>>();
+  std::vector<double> gravity_array = yaml_["imu"]["gravity"].as<std::vector<double>>();
+  Vec3d init_bg = math::VecFromArray(init_bg_array);
+  Vec3d init_ba = math::VecFromArray(init_ba_array);
+  Vec3d gravity = math::VecFromArray(gravity_array);
 
-//   // 读取初始零偏，设置ESKF
-//   localization::ESKFD::Options options;
-//   // 噪声由初始化器估计
-//   // options.gyro_var_ = sqrt(imu_init_.GetCovGyro()[0]);
-//   // options.acce_var_ = sqrt(imu_init_.GetCovAcce()[0]);
-//   options.update_bias_acce_ = false;
-//   options.update_bias_gyro_ = false;
-//   eskf_.SetInitialConditions(options, imu_init_.GetInitBg(), imu_init_.GetInitBa(), imu_init_.GetGravity());
-// }
+  // 读取初始零偏，设置ESKF
+  localization::ESKFD::Options options;
+  
+  options.update_bias_acce_ = false;
+  options.update_bias_gyro_ = false;
+  eskf_.SetInitialConditions(options, init_bg, init_ba, gravity);
+  
+  imu_need_init_ = false;
+
+  LOG(INFO) << "IMU初始化成功";
+}
 
 void Fusion::Predict() {
   imu_states_.clear();
