@@ -31,6 +31,8 @@ FusionFlow::FusionFlow(const rclcpp::Node::SharedPtr& node)
   map_cb_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
 
   InitIO();
+
+  PublishMap();
 }
 
 void FusionFlow::InitIO() {
@@ -96,12 +98,18 @@ void FusionFlow::PublishCurrentScan() {
   cloud_msg.header.stamp.sec = current_scan_undistorted->header.stamp / 1000000;
   cloud_msg.header.stamp.nanosec = (current_scan_undistorted->header.stamp % 1000000) * 1000;
 
-  current_scan_publisher_->publish(cloud_msg);
+  //current_scan_publisher_->publish(cloud_msg);
 }
 
-void FusionFlow::PublishMap() { 
-  //todo
-  
+void FusionFlow::PublishMap() {
+  CloudPtr visual_map = fusion_ptr_->GetVisualMap();
+
+  sensor_msgs::msg::PointCloud2 map_msg;
+  pcl::toROSMsg(*visual_map, map_msg);
+  map_msg.header.frame_id = "map";
+  map_msg.header.stamp = node_->now();
+
+  map_publisher_->publish(map_msg);
 }
 
 void FusionFlow::PublishOdom() {

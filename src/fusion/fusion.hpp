@@ -54,7 +54,7 @@ public:
   //获取当前状态
   NavStated::Ptr GetCurrentState() const;
   FullCloudPtr GetCurrentScan() const;
-  TileManager::Ptr GetTileManager() const;
+  CloudPtr GetVisualMap() const;
 
   //RTK状态
   enum class Status {

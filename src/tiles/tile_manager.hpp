@@ -33,7 +33,8 @@ public:
   bool HasMapChanged();
   bool HasMapInitialized();
   
-  CloudPtr GetRefCloud(); //todo 重命名
+  CloudPtr GetRefCloud();     //todo 重命名
+  CloudPtr GetVisFullCloud();
 
   std::map<Vec2i, CloudPtr, less_vec<2>> GetLoadedTiles(); //用于pangolin可视化，todo删除
 

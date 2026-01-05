@@ -69,6 +69,16 @@ CloudPtr TileManager::GetRefCloud() {
   return ref_cloud_;
 }
 
+CloudPtr TileManager::GetVisFullCloud() {
+  // 加载滤波后的全局点云地图，用于可视化，不用于定位
+  // todo
+  // 1.全局点云图编号为888_888，修改地图编号逻辑
+  // 2.加载静态全局点云图为线程阻塞模式，修改为非线程阻塞模式
+  CloudPtr static_full_map = LoadTileFromDisk(Vec2i(888, 888));
+
+  return static_full_map;
+}
+
 std::map<Vec2i, CloudPtr, less_vec<2>> TileManager::GetLoadedTiles() {
   std::lock_guard<std::mutex> lock(loaded_tiles_mutex_);
 

@@ -335,7 +335,7 @@ FullCloudPtr Fusion::GetCurrentScan() const {
   return scan_undistort_;
 }
 
-TileManager::Ptr Fusion::GetTileManager() const {
-  return tile_manager_ptr_;
+CloudPtr Fusion::GetVisualMap() const {
+  return tile_manager_ptr_->GetVisFullCloud();
 }
 }  //namespace localization
