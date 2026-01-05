@@ -19,6 +19,7 @@
 #include <sensor_msgs/msg/point_cloud2.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <std_msgs/msg/float64_multi_array.hpp>
+#include <tf2_ros/transform_broadcaster.h>
 
 #include "models/converter/cloud_convert.hpp"
 #include "models/converter/utm_convert.hpp"
@@ -50,7 +51,7 @@ private:
   void PublishCurrentScan();
   void PublishMap();
   void PublishOdom();
-  void PublishTf();
+  void PublishLidarTf();
 
   //订阅传感器数据
   rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_subscriber_;
@@ -62,6 +63,9 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map_publisher_;
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odometry_publisher_;
   rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr localization_publisher_;
+
+  //tf广播器
+  std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
   CloudConvert::Ptr cloud_converter_ptr_;
   std::shared_ptr<Fusion> fusion_ptr_;

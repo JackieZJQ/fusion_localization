@@ -54,6 +54,9 @@ void FusionFlow::InitIO() {
   rclcpp::QoS map_qos(rclcpp::KeepLast(1));
   map_qos.transient_local().reliable();
   map_publisher_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("/map", map_qos);
+
+  //初始化tf广播器
+  tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(node_);
 }
 
 void FusionFlow::ImuCallback(const sensor_msgs::msg::Imu::SharedPtr imu_msg_ptr) {
@@ -85,8 +88,9 @@ void FusionFlow::CloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cl
 
   //todo
   //点云定位完成后,获取当前eskf状态
-  PublishCurrentScan();
   PublishOdom();
+  PublishLidarTf();
+  PublishCurrentScan();
 }
 
 void FusionFlow::PublishCurrentScan() {
@@ -98,7 +102,7 @@ void FusionFlow::PublishCurrentScan() {
   cloud_msg.header.stamp.sec = current_scan_undistorted->header.stamp / 1000000;
   cloud_msg.header.stamp.nanosec = (current_scan_undistorted->header.stamp % 1000000) * 1000;
 
-  //current_scan_publisher_->publish(cloud_msg);
+  current_scan_publisher_->publish(cloud_msg);
 }
 
 void FusionFlow::PublishMap() {
@@ -118,8 +122,7 @@ void FusionFlow::PublishOdom() {
   nav_msgs::msg::Odometry msg;
   msg.header.frame_id = "map";
   msg.child_frame_id = "rslidar";
-  msg.header.stamp.sec = static_cast<int32_t>(state->timestamp_);
-  msg.header.stamp.nanosec = static_cast<uint32_t>((state->timestamp_ - msg.header.stamp.sec) * 1e9);
+  msg.header.stamp = rclcpp::Time(static_cast<int64_t>(state->timestamp_ * 1e9));
   
   msg.pose.pose.position.x = state->p_.x();
   msg.pose.pose.position.y = state->p_.y();
@@ -130,10 +133,26 @@ void FusionFlow::PublishOdom() {
   msg.pose.pose.orientation.y = state->R_.unit_quaternion().y();
   msg.pose.pose.orientation.z = state->R_.unit_quaternion().z();
 
-  odometry_publisher_->publish(msg);
+  //odometry_publisher_->publish(msg);
 }
 
-void FusionFlow::PublishTf() {
+void FusionFlow::PublishLidarTf() {
+  NavStated::Ptr state = fusion_ptr_->GetCurrentState();
 
+  geometry_msgs::msg::TransformStamped transform_stamped;
+  transform_stamped.header.stamp = rclcpp::Time(static_cast<int64_t>(state->timestamp_ * 1e9)); 
+  transform_stamped.header.frame_id = "map";
+  transform_stamped.child_frame_id = "rslidar";
+
+  transform_stamped.transform.translation.x = state->p_.x();
+  transform_stamped.transform.translation.y = state->p_.y();
+  transform_stamped.transform.translation.z = state->p_.z();
+
+  transform_stamped.transform.rotation.w = state->R_.unit_quaternion().w();
+  transform_stamped.transform.rotation.x = state->R_.unit_quaternion().x();
+  transform_stamped.transform.rotation.y = state->R_.unit_quaternion().y();
+  transform_stamped.transform.rotation.z = state->R_.unit_quaternion().z();
+
+  tf_broadcaster_->sendTransform(transform_stamped);
 }
 } // namespace localization
