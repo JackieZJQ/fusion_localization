@@ -3,7 +3,7 @@
  * 
  * @file fusion_flow.cpp
  * @author Zhang Jiaqi (zhangiaii97@gmail.com)
- * @brief 
+ * @brief 融合定位ROS输入输出IO
  * 
  * ************************************************************************
  * @copyright Copyright (c) 2026
@@ -79,8 +79,8 @@ void FusionFlow::GnssCallback(const sensor_msgs::msg::NavSatFix::SharedPtr gnss_
 }
 
 void FusionFlow::CloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud_msg_ptr) {
-
-  //对点云数量做滤波
+  //Timer timer("CloudCallback");
+  // 对点云数量做滤波
   CLOUD::Ptr cloud_ptr(new CLOUD);
   cloud_ptr->timestamp_ = cloud_msg_ptr->header.stamp.sec + cloud_msg_ptr->header.stamp.nanosec * 1e-9;
   cloud_converter_ptr_->Process(cloud_msg_ptr, cloud_ptr->full_cloud_ptr_);
@@ -90,7 +90,8 @@ void FusionFlow::CloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cl
   //点云定位完成后,获取当前eskf状态
   PublishOdom();
   PublishLidarTf();
-  PublishCurrentScan();
+
+  //PublishCurrentScan();
 }
 
 void FusionFlow::PublishCurrentScan() {
@@ -106,14 +107,14 @@ void FusionFlow::PublishCurrentScan() {
 }
 
 void FusionFlow::PublishMap() {
-  CloudPtr visual_map = fusion_ptr_->GetVisualMap();
+  CloudPtr map = fusion_ptr_->GetVisualMap();
 
-  sensor_msgs::msg::PointCloud2 map_msg;
-  pcl::toROSMsg(*visual_map, map_msg);
-  map_msg.header.frame_id = "map";
-  map_msg.header.stamp = node_->now();
+  sensor_msgs::msg::PointCloud2 msg;
+  pcl::toROSMsg(*map, msg);
+  msg.header.frame_id = "map";
+  msg.header.stamp = node_->now();
 
-  map_publisher_->publish(map_msg);
+  map_publisher_->publish(msg);
 }
 
 void FusionFlow::PublishOdom() {
@@ -133,7 +134,7 @@ void FusionFlow::PublishOdom() {
   msg.pose.pose.orientation.y = state->R_.unit_quaternion().y();
   msg.pose.pose.orientation.z = state->R_.unit_quaternion().z();
 
-  //odometry_publisher_->publish(msg);
+  odometry_publisher_->publish(msg);
 }
 
 void FusionFlow::PublishLidarTf() {
@@ -155,4 +156,16 @@ void FusionFlow::PublishLidarTf() {
 
   tf_broadcaster_->sendTransform(transform_stamped);
 }
-} // namespace localization
+
+void FusionFlow::PublishLidarLocalization() {
+  NavStated::Ptr state = fusion_ptr_->GetCurrentState();
+
+  std_msgs::msg::Float64MultiArray msg;
+  msg.data.resize(3);
+  msg.data[0] = state->p_.x();
+  msg.data[1] = state->p_.y();
+  msg.data[2] = state->p_.z();
+
+  localization_publisher_->publish(msg);
+}
+} // namespace localizationmap

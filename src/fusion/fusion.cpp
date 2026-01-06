@@ -72,10 +72,11 @@ void Fusion::ProcessMeasurements(const MessageSync::MeasureGroup& meas) {
   }
 
   //以下三步与LIO一致，只是align完成地图匹配工作
-  if (status_ == Status::WORKING) {
+  if (state_ == state::kWORKING) {
     Predict();
     Undistort();
-  } else {
+  }
+  else {
     scan_undistort_ = measures_.lidar_;
     scan_undistort_->header.stamp = static_cast<uint64_t>(measures_.lidar_begin_time_ * 1e6);
   }
@@ -181,11 +182,11 @@ void Fusion::Align() {
   current_scan_ = ConvertToCloud<FullPointType>(scan_undistort_);
   current_scan_ = VoxelCloud(current_scan_, 0.5);
 
-  if (status_ == Status::WAITING_FOR_RTK) {
+  if (state_ == state::kWAITINGFORRTK) {
     //若存在最近的RTK信号，则尝试初始化
     if (last_gnss_ != nullptr) {
       if (SearchRTK()) {
-        status_ == Status::WORKING;
+        state_ = state::kWORKING;
         
         //更新UI
       }
@@ -241,7 +242,7 @@ bool Fusion::SearchRTK() {
   LOG(INFO) << "max score: " << max_ele->score_ << ", pose: \n" << max_ele->result_pose_.matrix();
   if (max_ele->score_ > rtk_search_min_score_) {
     LOG(INFO) << "初始化成功, score: " << max_ele->score_ << ">" << rtk_search_min_score_;
-    status_ = Status::WORKING;
+    state_ = state::kWORKING;
 
     //重置滤波器状态
     auto state = eskf_.GetNominalState();
@@ -323,7 +324,7 @@ void Fusion::ProcessRTK(GNSS::Ptr gnss) {
 }
 
 NavStated::Ptr Fusion::GetCurrentState() const {
-  if (status_ == Status::WORKING) {
+  if (state_ == state::kWORKING) {
     return std::make_shared<NavStated>(eskf_.GetNominalState());
   } else {
     //todo

@@ -3,7 +3,7 @@
  * 
  * @file fusion_flow.hpp
  * @author Zhang Jiaqi (zhangiaii97@gmail.com)
- * @brief 
+ * @brief 融合定位ROS输入输出IO
  * 
  * ************************************************************************
  * @copyright Copyright (c) 2026
@@ -47,11 +47,11 @@ private:
   void CloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud_msg_ptr);
 
   //发布rviz消息
-  void PublishLocalization();
   void PublishCurrentScan();
   void PublishMap();
   void PublishOdom();
   void PublishLidarTf();
+  void PublishLidarLocalization();
 
   //订阅传感器数据
   rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_subscriber_;

@@ -57,9 +57,9 @@ public:
   CloudPtr GetVisualMap() const;
 
   //RTK状态
-  enum class Status {
-    WAITING_FOR_RTK,  //等待初始的RTK
-    WORKING,          //正常工作
+  enum class state {
+    kWAITINGFORRTK,  //等待初始的RTK
+    kWORKING,        //正常工作
   };
 
   //网格搜索时的结构
@@ -95,7 +95,7 @@ private:
   void Align();
 
   //标志位
-  Status status_ = Status::WAITING_FOR_RTK;
+  state state_ = state::kWAITINGFORRTK;
 
   //数据
   Vec3d map_origin_ = Vec3d::Zero();                 //地图原点

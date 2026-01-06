@@ -129,7 +129,7 @@ Visualization Manager:
       Enabled: true
       Invert Rainbow: false
       Max Color: 255; 255; 255
-      Max Intensity: 207
+      Max Intensity: 255
       Min Color: 0; 0; 0
       Min Intensity: 2
       Name: PointCloud2
@@ -190,25 +190,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/ThirdPersonFollower
-      Distance: 156.97349548339844
+      Distance: 92.55683135986328
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -49.89380645751953
-        Y: -6.420078277587891
-        Z: -3.6708335876464844
+        X: -19.391897201538086
+        Y: -1.0704865455627441
+        Z: -2.0161941051483154
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.1547967195510864
+      Pitch: 1.0947965383529663
       Target Frame: rslidar
       Value: ThirdPersonFollower (rviz_default_plugins)
-      Yaw: 2.187220335006714
+      Yaw: 2.725428342819214
     Saved: ~
 Window Geometry:
   Displays:
