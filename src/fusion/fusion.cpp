@@ -20,11 +20,11 @@ Fusion::Fusion(const YAML::Node& yaml)
   registration_manager_ptr_ = std::make_shared<RegistrationManager>(yaml_);
   tile_manager_ptr_ = std::make_shared<TileManager>(yaml_);
 
-  InitConfig();
-  InitIMU();
+  InitConfigFromYaml();
+  InitImu();
 }
 
-bool Fusion::InitConfig() {
+bool Fusion::InitConfigFromYaml() {
   //地图原点
   auto origin_data = yaml_["origin"].as<std::vector<double>>();
   map_origin_ = Vec3d(origin_data[0], origin_data[1], origin_data[2]);
@@ -45,8 +45,8 @@ bool Fusion::InitConfig() {
   return true;
 }
 
-bool Fusion::InitIMU() {
-
+bool Fusion::InitImu() {
+  // 是否使用yaml中的值初始化
   bool init_imu_online = yaml_["imu"]["init_imu_online"].as<bool>();
   if (init_imu_online) {
     //在线初始化
@@ -64,8 +64,10 @@ bool Fusion::InitIMU() {
 
 void Fusion::ProcessMeasurements(const MessageSync::MeasureGroup& meas) {
   //Timer timer("Fusion::ProcessMeasurements");
-  measures_ = meas;
+  synced_measures_ = meas;
 
+  //todo
+  //imu_need_init_->has_imu_inited_?
   if (imu_need_init_) {
     InitImuOnline();
     return;
@@ -73,19 +75,19 @@ void Fusion::ProcessMeasurements(const MessageSync::MeasureGroup& meas) {
 
   //以下三步与LIO一致，只是align完成地图匹配工作
   if (state_ == state::kWORKING) {
-    Predict();
-    Undistort();
-  }
-  else {
-    scan_undistort_ = measures_.lidar_;
-    scan_undistort_->header.stamp = static_cast<uint64_t>(measures_.lidar_begin_time_ * 1e6);
+    DoPredict();
+    DoUndistort();
+  } else {
+    // why here ?
+    undistorted_scan_ = synced_measures_.lidar_;
+    undistorted_scan_->header.stamp = static_cast<uint64_t>(synced_measures_.lidar_begin_time_ * 1e6);
   }
 
-  Align();
+  DoAlign();
 }
 
 void Fusion::InitImuOnline() {
-  for (auto imu : measures_.imu_) {
+  for (auto imu : synced_measures_.imu_) {
     //每一次ADDIMU后，都会计算是否符合初始化条件，如果符合，则计算IMU初始化数据
     imu_init_.AddIMU(*imu); 
   }
@@ -127,19 +129,19 @@ void Fusion::InitImuOffline() {
 
   LOG(INFO) << "\n"
             << "###############################################\n"
-            << "###############使用YAML初始化IMU成功############\n"
+            << "###############使用YAML初始化IMU成功###########\n"
             << "Init Bg: " << init_bg.transpose() << "\n"
             << "Init Ba: " << init_ba.transpose() << "\n"
             << "Gravity: " << gravity.transpose() << "\n"
             << "###############################################";
 }
 
-void Fusion::Predict() {
+void Fusion::DoPredict() {
   imu_states_.clear();
   imu_states_.emplace_back(eskf_.GetNominalState());
 
   //对IMU状态进行预测
-  for (auto& imu : measures_.imu_) {
+  for (auto& imu : synced_measures_.imu_) {
     eskf_.Predict(*imu);
     imu_states_.emplace_back(eskf_.GetNominalState());
 
@@ -148,8 +150,8 @@ void Fusion::Predict() {
   }
 }
 
-void Fusion::Undistort() {
-  auto cloud = measures_.lidar_;
+void Fusion::DoUndistort() {
+  auto cloud = synced_measures_.lidar_;
   auto imu_state = eskf_.GetNominalState();  //最后时刻的状态
   SE3 T_end = SE3(imu_state.R_, imu_state.p_);
 
@@ -160,7 +162,7 @@ void Fusion::Undistort() {
 
     //根据pt.time查找时间，pt.time是该点打到的时间与雷达开始时间之差，单位为毫秒
     math::PoseInterp<NavStated>(
-      measures_.lidar_begin_time_ + pt.time * 1e-3, imu_states_, [](const NavStated& s) { return s.timestamp_; },
+      synced_measures_.lidar_begin_time_ + pt.time * 1e-3, imu_states_, [](const NavStated& s) { return s.timestamp_; },
       [](const NavStated& s) { return s.GetSE3(); }, Ti, match);
 
     Vec3d pi = ToVec3d(pt);
@@ -171,45 +173,45 @@ void Fusion::Undistort() {
     pt.z = p_compensate(2);
   });
 
-  scan_undistort_ = cloud;
+  undistorted_scan_ = cloud;
 
 }
 
-void Fusion::Align() {
-  FullCloudPtr scan_undistort_trans(new FullPointCloudType);
-  pcl::transformPointCloud(*scan_undistort_, *scan_undistort_trans, TIL_.matrix());
-  scan_undistort_ = scan_undistort_trans;
-  current_scan_ = ConvertToCloud<FullPointType>(scan_undistort_);
+void Fusion::DoAlign() {
+  FullCloudPtr undistorted_scan_trans(new FullPointCloudType);
+  pcl::transformPointCloud(*undistorted_scan_, *undistorted_scan_trans, TIL_.matrix());
+  undistorted_scan_ = undistorted_scan_trans;
+  current_scan_ = ConvertToCloud<FullPointType>(undistorted_scan_);
   current_scan_ = VoxelCloud(current_scan_, 0.5);
 
   if (state_ == state::kWAITINGFORRTK) {
-    //若存在最近的RTK信号，则尝试初始化
-    if (last_gnss_ != nullptr) {
-      if (SearchRTK()) {
+    if (last_gnss_ != nullptr) { //若存在最近的RTK信号，则尝试初始化
+      if (SearchRtk()) {
         state_ = state::kWORKING;
-        
-        //更新UI
       }
     }
   } else {
-    LidarLocalization();
-    
-    //更新UI
+    DoLidarLocalization();
   }
 }
 
-bool Fusion::SearchRTK() {
-  if (init_has_failed_) {
-    if ((last_gnss_->utm_pose_.translation() - last_searched_pos_.translation()).norm() < 20.0) {
+bool Fusion::SearchRtk() {
+  if (init_failed_) {
+    if ((last_gnss_->utm_pose_.translation() - last_searched_pose_.translation()).norm() < 20.0) {
       LOG(INFO) << "skip this position";
       return false;
     }
   }
 
+  //todo
+  //使用带姿态的Rtk进行Ndt的初始化
+
   //由于RTK不带姿态，我们必须先搜索一定的角度范围
   std::vector<GridSearchResult> search_poses;
   tile_manager_ptr_->UpdateCurrentPose(last_gnss_->utm_pose_);
   
+  //todo
+  //tile_manager_ptr是不是可以单独放在其他一个函数/线程，单独检测tile_manager的状态
   if (!tile_manager_ptr_->HasMapInitialized()) {
     LOG(INFO) << "map uninitialized";
     return false;
@@ -219,8 +221,9 @@ bool Fusion::SearchRTK() {
     CloudPtr ref_cloud = tile_manager_ptr_->GetRefCloud();
     std::map<Vec2i, CloudPtr, less_vec<2>> map_data = tile_manager_ptr_->GetLoadedTiles();
 
+    //todo
+    //此处不用一直初始化Ndt吧？应该初始化一次就行了
     registration_manager_ptr_->UpdateRefCloud(ref_cloud);
-    //更新UI
   }
 
   //由于RTK不带角度，这里按固定步长扫描RTK角度
@@ -240,9 +243,9 @@ bool Fusion::SearchRTK() {
   auto max_ele = std::max_element(search_poses.begin(), search_poses.end(),
                                   [](const auto& g1, const auto& g2) { return g1.score_ < g2.score_; });
   LOG(INFO) << "max score: " << max_ele->score_ << ", pose: \n" << max_ele->result_pose_.matrix();
+  
   if (max_ele->score_ > rtk_search_min_score_) {
     LOG(INFO) << "初始化成功, score: " << max_ele->score_ << ">" << rtk_search_min_score_;
-    state_ = state::kWORKING;
 
     //重置滤波器状态
     auto state = eskf_.GetNominalState();
@@ -256,14 +259,17 @@ bool Fusion::SearchRTK() {
     cov.block<12, 12>(6, 6) = Eigen::Matrix<double, 12, 12>::Identity() * 1e-6;
     eskf_.SetCov(cov);
 
+    state_ = state::kWORKING;
     return true;
   }
 
-  init_has_failed_ = true;
-  last_searched_pos_ = last_gnss_->utm_pose_;
+  init_failed_ = true;
+  last_searched_pose_ = last_gnss_->utm_pose_;
   return false;
 }
 
+//todo
+//使用ndt_omp/ndt_gpu提高配准速度
 void Fusion::AlignForGrid(GridSearchResult& gr) {
   //多分辨率
   pcl::NormalDistributionsTransform<PointType, PointType> ndt;
@@ -289,7 +295,7 @@ void Fusion::AlignForGrid(GridSearchResult& gr) {
   gr.result_pose_ = Mat4ToSE3(ndt.getFinalTransformation());
 }
 
-bool Fusion::LidarLocalization() {
+bool Fusion::DoLidarLocalization() {
   SE3 pred = eskf_.GetNominalSE3();
   tile_manager_ptr_->UpdateCurrentPose(pred);
   if (tile_manager_ptr_->HasMapChanged()) {
@@ -310,7 +316,7 @@ bool Fusion::LidarLocalization() {
   return true;
 }
 
-void Fusion::ProcessIMU(IMU::Ptr imu) { 
+void Fusion::ProcessImu(IMU::Ptr imu) { 
   sync_ptr_->ProcessIMU(imu); 
 }
 
@@ -318,7 +324,7 @@ void Fusion::ProcessPointCloud(CLOUD::Ptr cloud) {
   sync_ptr_->ProcessCloud(cloud);
 }
 
-void Fusion::ProcessRTK(GNSS::Ptr gnss) {
+void Fusion::ProcessRtk(GNSS::Ptr gnss) {
   gnss->utm_pose_.translation() -= map_origin_; //减掉地图原点
   last_gnss_ = gnss;
 }
@@ -333,7 +339,7 @@ NavStated::Ptr Fusion::GetCurrentState() const {
 }
 
 FullCloudPtr Fusion::GetCurrentScan() const {
-  return scan_undistort_;
+  return undistorted_scan_;
 }
 
 CloudPtr Fusion::GetVisualMap() const {

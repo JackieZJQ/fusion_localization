@@ -27,18 +27,18 @@ FusionFlow::FusionFlow(const rclcpp::Node::SharedPtr& node)
   cloud_converter_ptr_ = std::make_shared<CloudConvert>(yaml);
 
   //NEW创建回调组
-  sensor_cb_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-  map_cb_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
+  sensor_callback_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+  map_callback_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
 
-  InitIO();
+  InitRosInterfaces();
 
   PublishMap();
 }
 
-void FusionFlow::InitIO() {
+void FusionFlow::InitRosInterfaces() {
   //订阅（共用同一 MutuallyExclusive 回调组，串行处理）
   rclcpp::SubscriptionOptions sensor_opts;
-  sensor_opts.callback_group = sensor_cb_group_;
+  sensor_opts.callback_group = sensor_callback_group_;
 
   //订阅传感器消息
   imu_subscriber_ = node_->create_subscription<sensor_msgs::msg::Imu>("/imu", 10, std::bind(&FusionFlow::ImuCallback, this, std::placeholders::_1), sensor_opts);
@@ -63,7 +63,7 @@ void FusionFlow::ImuCallback(const sensor_msgs::msg::Imu::SharedPtr imu_msg_ptr)
   
   //转换为IMU格式
   IMU::Ptr imu = std::make_shared<localization::IMU>(imu_msg_ptr);
-  fusion_ptr_->ProcessIMU(imu);
+  fusion_ptr_->ProcessImu(imu);
 }
 
 void FusionFlow::GnssCallback(const sensor_msgs::msg::NavSatFix::SharedPtr gnss_msg_ptr) {
@@ -75,7 +75,7 @@ void FusionFlow::GnssCallback(const sensor_msgs::msg::NavSatFix::SharedPtr gnss_
   if (std::isnan(gnss->lat_lon_alt_[2]))
     return;
 
-  fusion_ptr_->ProcessRTK(gnss);
+  fusion_ptr_->ProcessRtk(gnss);
 }
 
 void FusionFlow::CloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud_msg_ptr) {
@@ -168,4 +168,4 @@ void FusionFlow::PublishLidarLocalization() {
 
   localization_publisher_->publish(msg);
 }
-} // namespace localizationmap
+} // namespace localization

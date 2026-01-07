@@ -43,12 +43,12 @@ public:
 
   ~Fusion() = default;
 
-  bool InitConfig();
-  bool InitIMU();
+  bool InitConfigFromYaml();
+  bool InitImu();
 
   //处理输入
-  void ProcessRTK(GNSS::Ptr gnss);
-  void ProcessIMU(IMU::Ptr imu);
+  void ProcessRtk(GNSS::Ptr gnss);
+  void ProcessImu(IMU::Ptr imu);
   void ProcessPointCloud(CLOUD::Ptr cloud);
 
   //获取当前状态
@@ -74,32 +74,32 @@ public:
 private:
   void ProcessMeasurements(const MessageSync::MeasureGroup& meas);   //处理同步之后的IMU和雷达数据
 
-  bool SearchRTK();   //在初始RTK附近搜索车辆位置
+  bool SearchRtk();   //在初始RTK附近搜索车辆位置
 
   void AlignForGrid(GridSearchResult& gr);   //对网格搜索的某个点进行配准，得到配准后位姿与配准分值
 
-  bool LidarLocalization();   //激光定位
 
   void InitImuOnline();   //在线估计IMU初始零偏
 
   void InitImuOffline();  //离线估计IMU初始零偏，使用yaml中的配置
 
-  //利用IMU预测状态信息
-  //这段时间的预测数据会放入imu_states_里
-  void Predict();
+  //激光定位
+  bool DoLidarLocalization();   
+
+  //利用IMU预测状态信息,这段时间的预测数据会放入imu_states_里
+  void DoPredict();
 
   //对measures_中的点云去畸变
-  void Undistort();
+  void DoUndistort();
 
   //执行一次配准和观测
-  void Align();
+  void DoAlign();
 
   //标志位
   state state_ = state::kWAITINGFORRTK;
 
-  //数据
-  Vec3d map_origin_ = Vec3d::Zero();                 //地图原点
-  std::string data_path_;                            //地图数据目录
+  //地图原点
+  Vec3d map_origin_ = Vec3d::Zero();                
 
   std::shared_ptr<MessageSync> sync_ptr_ = nullptr;  //消息同步器
   StaticIMUInit imu_init_;                           //IMU静止初始化
@@ -108,17 +108,16 @@ private:
   ESKFD eskf_;
   std::vector<NavStated> imu_states_;  //ESKF预测期间的状态
 
-  FullCloudPtr scan_undistort_{ new FullPointCloudType() }; //矫过畸变之后的点云
+  FullCloudPtr undistorted_scan_ { new FullPointCloudType() }; //矫过畸变之后的点云
   CloudPtr current_scan_ = nullptr;
 
   SE3 TIL_;
-  MessageSync::MeasureGroup measures_;         //同步IMU与雷达扫描
+  MessageSync::MeasureGroup synced_measures_;         //同步IMU与雷达扫描
   GNSS::Ptr last_gnss_ = nullptr;
 
-  bool init_has_failed_ = false;  //初始化是否失败过
-  SE3 last_searched_pos_;         //上次搜索的GNSS位置
-
-  bool imu_need_init_ = true;     //是否需要估计IMU初始零偏
+  bool init_failed_ = false;  //RTK初始化是否失败过
+  SE3 last_searched_pose_;    //上次搜索的RTK位置
+  bool imu_need_init_ = true; //是否需要估计IMU初始零偏
 
   RegistrationManager::Ptr registration_manager_ptr_;
 

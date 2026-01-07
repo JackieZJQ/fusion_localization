@@ -36,7 +36,7 @@ public:
 
   ~FusionFlow() = default;
 
-  void InitIO();
+  void InitRosInterfaces();
 
   using Ptr = std::shared_ptr<localization::FusionFlow>;
 
@@ -70,11 +70,10 @@ private:
   CloudConvert::Ptr cloud_converter_ptr_;
   std::shared_ptr<Fusion> fusion_ptr_;
   rclcpp::Node::SharedPtr node_;
-  rclcpp::TimerBase::SharedPtr publish_timer_;
 
   // 回调组
-  rclcpp::CallbackGroup::SharedPtr sensor_cb_group_; // IMU/GNSS/Cloud 串行
-  rclcpp::CallbackGroup::SharedPtr map_cb_group_;    // 地图发布可并行
+  rclcpp::CallbackGroup::SharedPtr sensor_callback_group_; // IMU/GNSS/Cloud 串行
+  rclcpp::CallbackGroup::SharedPtr map_callback_group_;    // 地图发布可并行
 };
 } // namesapce localization
 
