@@ -28,16 +28,14 @@ bool ConvertGps2UTM(GNSS& gps_msg, const Vec2d& antenna_pos, const double& anten
   }
   utm_rtk.z_ = gps_msg.lat_lon_alt_[2];
 
-  //todo
-  //gps heading 转成弧度
-  //heading的转换需要确认 北东地？ 东北天？
+  // GPS heading转换：北东地 -> 东北天
   double heading = 0;
   if (gps_msg.heading_valid_) {
-    heading = (90 - gps_msg.heading_) * math::kDEG2RAD;  // 北东地转到东北天
+    heading = (90 - gps_msg.heading_) * math::kDEG2RAD;
   }
 
-  //GNSS位姿 转到 车体位姿
-  //TWG 转到 TWB
+  // GNSS位姿 转到 车体位姿
+  // TWG 转到 TWB
   SE3 TBG(SO3::rotZ(antenna_angle * math::kDEG2RAD), Vec3d(antenna_pos[0], antenna_pos[1], 0));
   SE3 TGB = TBG.inverse();
 

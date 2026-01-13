@@ -63,22 +63,19 @@ bool Fusion::InitImu() {
 }
 
 void Fusion::ProcessMeasurements(const MessageSync::MeasureGroup& meas) {
-  //Timer timer("Fusion::ProcessMeasurements");
   synced_measures_ = meas;
 
-  //todo
-  //imu_need_init_->has_imu_inited_?
   if (imu_need_init_) {
     InitImuOnline();
     return;
   }
 
-  //以下三步与LIO一致，只是align完成地图匹配工作
+  // 以下三步与LIO一致，只是align完成地图匹配工作
   if (state_ == state::kWORKING) {
     DoPredict();
     DoUndistort();
   } else {
-    // why here ?
+    // 未初始化时，直接使用未去畸变的点云
     undistorted_scan_ = synced_measures_.lidar_;
     undistorted_scan_->header.stamp = static_cast<uint64_t>(synced_measures_.lidar_begin_time_ * 1e6);
   }
@@ -88,12 +85,12 @@ void Fusion::ProcessMeasurements(const MessageSync::MeasureGroup& meas) {
 
 void Fusion::InitImuOnline() {
   for (auto imu : synced_measures_.imu_) {
-    //每一次ADDIMU后，都会计算是否符合初始化条件，如果符合，则计算IMU初始化数据
+    // 每一次AddIMU后，都会计算是否符合初始化条件，如果符合，则计算IMU初始化数据
     imu_init_.AddIMU(*imu); 
   }
 
   if (imu_init_.InitSuccess()) {
-    //读取初始零偏，设置ESKF
+    // 读取初始零偏，设置ESKF
     localization::ESKFD::Options options;
     // 噪声由初始化器估计
     // options.gyro_var_ = sqrt(imu_init_.GetCovGyro()[0]);
@@ -104,9 +101,6 @@ void Fusion::InitImuOnline() {
     imu_need_init_ = false;
   
     LOG(INFO) << "IMU在线初始化成功";
-
-    //todo
-    //imu初始化成功后，把数据记录于yaml文件中
   }
 }
 
@@ -140,13 +134,10 @@ void Fusion::DoPredict() {
   imu_states_.clear();
   imu_states_.emplace_back(eskf_.GetNominalState());
 
-  //对IMU状态进行预测
+  // 对IMU状态进行预测
   for (auto& imu : synced_measures_.imu_) {
     eskf_.Predict(*imu);
     imu_states_.emplace_back(eskf_.GetNominalState());
-
-    //todo
-    //需要每一次predict()一次，发布一次状态吗？
   }
 }
 
@@ -203,26 +194,18 @@ bool Fusion::SearchRtk() {
     }
   }
 
-  //todo
-  //使用带姿态的Rtk进行Ndt的初始化
-
-  //由于RTK不带姿态，我们必须先搜索一定的角度范围
+  // 由于RTK不带姿态，我们必须先搜索一定的角度范围
   std::vector<GridSearchResult> search_poses;
   tile_manager_ptr_->UpdateCurrentPose(last_gnss_->utm_pose_);
   
-  //todo
-  //tile_manager_ptr是不是可以单独放在其他一个函数/线程，单独检测tile_manager的状态
   if (!tile_manager_ptr_->HasMapInitialized()) {
     LOG(INFO) << "map uninitialized";
     return false;
   }
 
+  // 只在地图变更时更新参考点云，避免重复初始化
   if (tile_manager_ptr_->HasMapChanged()) {
     CloudPtr ref_cloud = tile_manager_ptr_->GetRefCloud();
-    std::map<Vec2i, CloudPtr, less_vec<2>> map_data = tile_manager_ptr_->GetLoadedTiles();
-
-    //todo
-    //此处不用一直初始化Ndt吧？应该初始化一次就行了
     registration_manager_ptr_->UpdateRefCloud(ref_cloud);
   }
 
@@ -268,10 +251,10 @@ bool Fusion::SearchRtk() {
   return false;
 }
 
-//todo
-//使用ndt_omp/ndt_gpu提高配准速度
+// 对网格搜索的某个点进行配准，得到配准后位姿与配准分值
+// 注意：系统已经使用ndt_omp提供的并行NDT加速
 void Fusion::AlignForGrid(GridSearchResult& gr) {
-  //多分辨率
+  // 多分辨率NDT配准
   pcl::NormalDistributionsTransform<PointType, PointType> ndt;
   ndt.setTransformationEpsilon(0.05);
   ndt.setStepSize(0.7);
@@ -300,10 +283,7 @@ bool Fusion::DoLidarLocalization() {
   tile_manager_ptr_->UpdateCurrentPose(pred);
   if (tile_manager_ptr_->HasMapChanged()) {
     CloudPtr ref_cloud = tile_manager_ptr_->GetRefCloud();
-    std::map<Vec2i, CloudPtr, less_vec<2>> map_data = tile_manager_ptr_->GetLoadedTiles();
-
     registration_manager_ptr_->UpdateRefCloud(ref_cloud);
-    //更新UI
   }
 
   Eigen::Matrix4f pred_pose = pred.matrix().cast<float>();
@@ -325,7 +305,7 @@ void Fusion::ProcessPointCloud(CLOUD::Ptr cloud) {
 }
 
 void Fusion::ProcessRtk(GNSS::Ptr gnss) {
-  gnss->utm_pose_.translation() -= map_origin_; //减掉地图原点
+  gnss->utm_pose_.translation() -= map_origin_;
   last_gnss_ = gnss;
 }
 
@@ -333,8 +313,8 @@ NavStated::Ptr Fusion::GetCurrentState() const {
   if (state_ == state::kWORKING) {
     return std::make_shared<NavStated>(eskf_.GetNominalState());
   } else {
-    //todo
-    //未初始化下，应该执行的操作
+    // 未初始化时返回空指针
+    return nullptr;
   }
 }
 

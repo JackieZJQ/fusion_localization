@@ -45,14 +45,10 @@ bool NdtManager::Align(const CloudPtr& cloud, const Eigen::Matrix4f& predict_pos
 
   result_pose = ndt_->getFinalTransformation();
 
-  //todo
-  //设置阈值
-  // double temp = 1.0;
-  // if (ndt_->getFitnessScore() < temp) {
+  // 可选：根据需求设置fitness score阈值来判断配准质量
+  // double fitness_threshold = 1.0;
+  // if (ndt_->getFitnessScore() > fitness_threshold) {
   //   return false;
-  // } else {
-  //   pose = ndt_->getFinalTransformation();
-  //   return true;
   // }
 
   return true;

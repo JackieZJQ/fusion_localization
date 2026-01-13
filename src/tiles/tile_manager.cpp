@@ -61,21 +61,29 @@ bool TileManager::HasMapInitialized() {
 CloudPtr TileManager::GetRefCloud() {
   std::lock_guard<std::mutex> lock(ref_cloud_mutex_);
 
-  //将地图点云指针传输出去后，重置map_changed_标志
-  //todo
-  //是否可以获取点云后，标志位仍然是true？
+  // 将地图点云指针传输出去后，重置map_changed_标志
   ref_cloud_changed_.store(false, std::memory_order_release);
   
   return ref_cloud_;
 }
 
 CloudPtr TileManager::GetVisFullCloud() {
-  // 加载滤波后的全局点云地图，用于可视化，不用于定位
-  // todo
-  // 1.全局点云图编号为888_888，修改地图编号逻辑
-  // 2.加载静态全局点云图为线程阻塞模式，修改为非线程阻塞模式
+  // 使用缓存避免重复加载阻塞
+  // 首次调用时加载，后续调用直接返回缓存
+  if (vis_full_cloud_loaded_.load(std::memory_order_acquire)) {
+    std::lock_guard<std::mutex> lock(vis_full_cloud_mutex_);
+    return vis_full_cloud_;
+  }
+  
+  // 首次加载可视化地图（全局点云图编号为888_888）
   CloudPtr static_full_map = LoadTileFromDisk(Vec2i(888, 888));
-
+  
+  {
+    std::lock_guard<std::mutex> lock(vis_full_cloud_mutex_);
+    vis_full_cloud_ = static_full_map;
+    vis_full_cloud_loaded_.store(true, std::memory_order_release);
+  }
+  
   return static_full_map;
 }
 
@@ -154,8 +162,6 @@ CloudPtr TileManager::LoadTileFromDisk(const Vec2i& index) {
 void TileManager::BackgroundTileManagementLoop() {
   LOG(INFO) << "TileManager worker started.";
 
-  //todo
-  //loaded_tiles的逻辑有问题
   while (tile_thread_should_run_.load(std::memory_order_acquire)) {
     //每50ms检查一次pose是否更新
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
@@ -175,7 +181,7 @@ void TileManager::BackgroundTileManagementLoop() {
     //2.获取pose周围格子索引，获取loaded_tiles副本
     Vec2i local_tile_indice = PoseToTile(current_pose);
     std::set<Vec2i, less_vec<2>> surrounding_tile_indices = PoseToSurroundTiles(current_pose);
-    std::map<Vec2i, CloudPtr, less_vec<2>> loaded_tiles; //loaded_tiles副本，用于重构red_cloud
+    std::map<Vec2i, CloudPtr, less_vec<2>> loaded_tiles;
 
     {
       std::lock_guard<std::mutex> lock(loaded_tiles_mutex_);
