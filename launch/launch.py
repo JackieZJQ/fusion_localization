@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.conditions import IfCondition, UnlessCondition
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-import os
 
 def generate_launch_description():
     # 配置文件路径参数
@@ -38,6 +38,14 @@ def generate_launch_description():
         description='Path to the rosbag (folder). Leave empty to skip playback.'
     )
     bag_path = LaunchConfiguration('bag_path')
+    
+    # 是否启用rosbag回放
+    use_bag_arg = DeclareLaunchArgument(
+        'use_bag',
+        default_value='false',
+        description='Set to true to enable rosbag playback'
+    )
+    use_bag = LaunchConfiguration('use_bag')
 
     # 融合定位节点
     fusion_node = Node(
@@ -60,9 +68,8 @@ def generate_launch_description():
     )
 
     # rosbag2 回放节点（可选）
-    # 使用条件：只有当提供了 bag_path 时才执行
     rosbag_play = ExecuteProcess(
-        condition=lambda context: context.launch_configurations.get('bag_path', '') != '',
+        condition=IfCondition(use_bag),
         cmd=[
             'ros2', 'bag', 'play',
             bag_path,
@@ -78,6 +85,7 @@ def generate_launch_description():
         config_path_arg,
         rviz_config_arg,
         bag_path_arg,
+        use_bag_arg,
         fusion_node,
         rviz_node,
         rosbag_play,

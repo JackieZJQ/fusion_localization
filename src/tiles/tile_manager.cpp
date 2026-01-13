@@ -75,8 +75,8 @@ CloudPtr TileManager::GetVisFullCloud() {
     return vis_full_cloud_;
   }
   
-  // 首次加载可视化地图（全局点云图编号为888_888）
-  CloudPtr static_full_map = LoadTileFromDisk(Vec2i(888, 888));
+  // 首次加载可视化地图（使用特殊的tile索引）
+  CloudPtr static_full_map = LoadTileFromDisk(Vec2i(VIS_MAP_TILE_X, VIS_MAP_TILE_Y));
   
   {
     std::lock_guard<std::mutex> lock(vis_full_cloud_mutex_);

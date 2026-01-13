@@ -22,13 +22,13 @@ FusionFlow::FusionFlow(const rclcpp::Node::SharedPtr& node)
   node_->declare_parameter<std::string>("config_path", "");
   std::string config_path;
   if (!node_->get_parameter("config_path", config_path) || config_path.empty()) {
-    // 如果未提供参数，尝试使用默认路径
-    const char* home_dir = std::getenv("HOME");
-    if (home_dir) {
-      config_path = std::string(home_dir) + "/robobus_localization/fusion_localization_ws/src/fusion_localization/config/localization_robosense.yaml";
-    } else {
-      LOG(FATAL) << "Config path parameter not provided and HOME environment variable not set";
-    }
+    // 如果未提供参数，尝试使用相对于包的默认路径
+    // 这需要确保config目录已正确安装
+    RCLCPP_WARN(node_->get_logger(), 
+                "Config path parameter not provided. Please provide it via launch file parameter.");
+    RCLCPP_WARN(node_->get_logger(), 
+                "Example: ros2 launch fusion_localization launch.py config_path:=/path/to/config.yaml");
+    throw std::runtime_error("Configuration file path must be provided via 'config_path' parameter");
   }
   
   LOG(INFO) << "Loading configuration from: " << config_path;

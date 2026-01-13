@@ -41,6 +41,9 @@ public:
   using Ptr = std::shared_ptr<localization::TileManager>;
 
 private:
+  // 可视化地图的特殊tile索引（全局地图）
+  static constexpr int VIS_MAP_TILE_X = 888;
+  static constexpr int VIS_MAP_TILE_Y = 888;
   bool LoadAvailableTileIndices();               //加载地图格子索引
   CloudPtr LoadTileFromDisk(const Vec2i& index); //从文件加载地图格子
 
