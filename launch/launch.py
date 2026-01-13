@@ -31,11 +31,11 @@ def generate_launch_description():
     )
     rviz_config = LaunchConfiguration('rviz_config')
 
-    # rosbag 路径
+    # rosbag 路径（仅在use_bag为true时使用）
     bag_path_arg = DeclareLaunchArgument(
         'bag_path',
         default_value='',
-        description='Path to the rosbag (folder). Leave empty to skip playback.'
+        description='Path to the rosbag (folder). Only used when use_bag is true.'
     )
     bag_path = LaunchConfiguration('bag_path')
     
@@ -43,7 +43,7 @@ def generate_launch_description():
     use_bag_arg = DeclareLaunchArgument(
         'use_bag',
         default_value='false',
-        description='Set to true to enable rosbag playback'
+        description='Set to true to enable rosbag playback. Requires bag_path to be set.'
     )
     use_bag = LaunchConfiguration('use_bag')
 

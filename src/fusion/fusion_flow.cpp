@@ -22,13 +22,10 @@ FusionFlow::FusionFlow(const rclcpp::Node::SharedPtr& node)
   node_->declare_parameter<std::string>("config_path", "");
   std::string config_path;
   if (!node_->get_parameter("config_path", config_path) || config_path.empty()) {
-    // 如果未提供参数，尝试使用相对于包的默认路径
-    // 这需要确保config目录已正确安装
-    RCLCPP_WARN(node_->get_logger(), 
-                "Config path parameter not provided. Please provide it via launch file parameter.");
-    RCLCPP_WARN(node_->get_logger(), 
-                "Example: ros2 launch fusion_localization launch.py config_path:=/path/to/config.yaml");
-    throw std::runtime_error("Configuration file path must be provided via 'config_path' parameter");
+    RCLCPP_ERROR(node_->get_logger(), 
+                 "Configuration file path must be provided via 'config_path' parameter. "
+                 "Usage: ros2 launch fusion_localization launch.py config_path:=/path/to/config.yaml");
+    throw std::runtime_error("Missing required parameter: config_path");
   }
   
   LOG(INFO) << "Loading configuration from: " << config_path;

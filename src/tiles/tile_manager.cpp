@@ -69,10 +69,13 @@ CloudPtr TileManager::GetRefCloud() {
 
 CloudPtr TileManager::GetVisFullCloud() {
   // 使用缓存避免重复加载阻塞
-  // 首次调用时加载，后续调用直接返回缓存
+  // 使用双重检查锁定模式(Double-Checked Locking)确保线程安全
   if (vis_full_cloud_loaded_.load(std::memory_order_acquire)) {
     std::lock_guard<std::mutex> lock(vis_full_cloud_mutex_);
-    return vis_full_cloud_;
+    // 再次检查，防止竞态条件
+    if (vis_full_cloud_) {
+      return vis_full_cloud_;
+    }
   }
   
   // 首次加载可视化地图（使用特殊的tile索引）
@@ -80,8 +83,13 @@ CloudPtr TileManager::GetVisFullCloud() {
   
   {
     std::lock_guard<std::mutex> lock(vis_full_cloud_mutex_);
-    vis_full_cloud_ = static_full_map;
-    vis_full_cloud_loaded_.store(true, std::memory_order_release);
+    // 只有成功加载才设置缓存和标志
+    if (static_full_map) {
+      vis_full_cloud_ = static_full_map;
+      vis_full_cloud_loaded_.store(true, std::memory_order_release);
+    } else {
+      LOG(WARNING) << "Failed to load visualization map from disk";
+    }
   }
   
   return static_full_map;
