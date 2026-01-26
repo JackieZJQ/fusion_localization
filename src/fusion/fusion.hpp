@@ -78,7 +78,6 @@ private:
 
   void AlignForGrid(GridSearchResult& gr);   //对网格搜索的某个点进行配准，得到配准后位姿与配准分值
 
-
   void InitImuOnline();   //在线估计IMU初始零偏
 
   void InitImuOffline();  //离线估计IMU初始零偏，使用yaml中的配置
