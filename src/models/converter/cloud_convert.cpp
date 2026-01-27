@@ -50,7 +50,7 @@ void CloudConvert::RobosenseHandler(const sensor_msgs::msg::PointCloud2::ConstPt
 }
 
 void CloudConvert::LoadFromYAML() {
-  time_scale_ = yaml_["preprocess"]["time_scale"].as<double>(); //todo 删除一些没用的参数
+  time_scale_ = yaml_["preprocess"]["time_scale"].as<double>();
   int lidar_type = yaml_["preprocess"]["lidar_type"].as<int>();
   num_scans_ = yaml_["preprocess"]["scan_line"].as<int>();
   point_filter_num_ = yaml_["point_filter_num"].as<int>();

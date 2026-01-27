@@ -18,9 +18,17 @@ namespace localization {
 FusionFlow::FusionFlow(const rclcpp::Node::SharedPtr& node) 
   : node_(node) {
   
-  //todo
-  //yaml文件的地址写入cmakelists文件
-  const std::string config_path = "/home/jackie/robobus_localization/fusion_localization_ws/src/fusion_localization/config/localization_robosense.yaml";
+  // 声明并获取配置文件路径参数
+  node_->declare_parameter<std::string>("config_path", "");
+  std::string config_path;
+  if (!node_->get_parameter("config_path", config_path) || config_path.empty()) {
+    RCLCPP_ERROR(node_->get_logger(), 
+                 "Configuration file path must be provided via 'config_path' parameter. "
+                 "Usage: ros2 launch fusion_localization launch.py config_path:=/path/to/config.yaml");
+    throw std::runtime_error("Missing required parameter: config_path");
+  }
+  
+  LOG(INFO) << "Loading configuration from: " << config_path;
   auto yaml = YAML::LoadFile(config_path);
 
   fusion_ptr_ = std::make_shared<Fusion>(yaml);
@@ -79,19 +87,14 @@ void FusionFlow::GnssCallback(const sensor_msgs::msg::NavSatFix::SharedPtr gnss_
 }
 
 void FusionFlow::CloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud_msg_ptr) {
-  //Timer timer("CloudCallback");
-  // 对点云数量做滤波
   CLOUD::Ptr cloud_ptr(new CLOUD);
   cloud_ptr->timestamp_ = cloud_msg_ptr->header.stamp.sec + cloud_msg_ptr->header.stamp.nanosec * 1e-9;
   cloud_converter_ptr_->Process(cloud_msg_ptr, cloud_ptr->full_cloud_ptr_);
   fusion_ptr_->ProcessPointCloud(cloud_ptr);
 
-  //todo
-  //点云定位完成后,获取当前eskf状态
+  // 点云定位完成后，发布当前ESKF状态
   PublishOdom();
   PublishLidarTf();
-
-  //PublishCurrentScan();
 }
 
 void FusionFlow::PublishCurrentScan() {
@@ -119,6 +122,9 @@ void FusionFlow::PublishMap() {
 
 void FusionFlow::PublishOdom() {
   NavStated::Ptr state = fusion_ptr_->GetCurrentState();
+  if (!state) {
+    return; // 未初始化时不发布
+  }
 
   nav_msgs::msg::Odometry msg;
   msg.header.frame_id = "map";
@@ -139,6 +145,9 @@ void FusionFlow::PublishOdom() {
 
 void FusionFlow::PublishLidarTf() {
   NavStated::Ptr state = fusion_ptr_->GetCurrentState();
+  if (!state) {
+    return; // 未初始化时不发布
+  }
 
   geometry_msgs::msg::TransformStamped transform_stamped;
   transform_stamped.header.stamp = rclcpp::Time(static_cast<int64_t>(state->timestamp_ * 1e9)); 
@@ -159,6 +168,9 @@ void FusionFlow::PublishLidarTf() {
 
 void FusionFlow::PublishLidarLocalization() {
   NavStated::Ptr state = fusion_ptr_->GetCurrentState();
+  if (!state) {
+    return; // 未初始化时不发布
+  }
 
   std_msgs::msg::Float64MultiArray msg;
   msg.data.resize(3);

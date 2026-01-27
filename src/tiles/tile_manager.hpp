@@ -33,14 +33,17 @@ public:
   bool HasMapChanged();
   bool HasMapInitialized();
   
-  CloudPtr GetRefCloud();     //todo 重命名
-  CloudPtr GetVisFullCloud();
+  CloudPtr GetRefCloud();     // 获取用于NDT配准的参考点云
+  CloudPtr GetVisFullCloud(); // 获取用于可视化的全局点云地图（缓存）
 
-  std::map<Vec2i, CloudPtr, less_vec<2>> GetLoadedTiles(); //用于pangolin可视化，todo删除
+  std::map<Vec2i, CloudPtr, less_vec<2>> GetLoadedTiles(); // 获取当前加载的地图块
 
   using Ptr = std::shared_ptr<localization::TileManager>;
 
 private:
+  // 可视化地图的特殊tile索引（全局地图）
+  static constexpr int VIS_MAP_TILE_X = 888;
+  static constexpr int VIS_MAP_TILE_Y = 888;
   bool LoadAvailableTileIndices();               //加载地图格子索引
   CloudPtr LoadTileFromDisk(const Vec2i& index); //从文件加载地图格子
 
@@ -60,6 +63,10 @@ private:
   mutable std::mutex ref_cloud_mutex_;              //保护ref_cloud_的互斥锁
   std::atomic_bool ref_cloud_changed_{ false };     //ref_cloud_是否更新标志
   std::atomic_bool ref_cloud_initialized_{ false }; //ref_cloud_是否初始化标志
+  
+  CloudPtr vis_full_cloud_;                         // 缓存的可视化全局点云
+  mutable std::mutex vis_full_cloud_mutex_;         // 保护vis_full_cloud_的互斥锁
+  std::atomic_bool vis_full_cloud_loaded_{ false }; // 可视化地图是否已加载标志
   
   SE3 current_pose_;                                   //此时定位姿态
   mutable std::mutex current_pose_mutex_;              //保护current_pose_的互斥锁
