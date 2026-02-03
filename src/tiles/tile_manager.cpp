@@ -140,7 +140,7 @@ std::set<Vec2i, less_vec<2>> TileManager::PoseToSurroundTiles(const SE3& pose) {
 
 CloudPtr TileManager::LoadTileFromDisk(const Vec2i& index) {
   //加载点云
-  std::string file = map_tiles_root_dir_ + std::to_string(index[0]) + "_" + std::to_string(index[1]) + ".pcd";
+  std::string file = map_tiles_root_dir_ + "/" + std::to_string(index[0]) + "_" + std::to_string(index[1]) + ".pcd";
   CloudPtr cloud(new PointCloudType);
 
   if (pcl::io::loadPCDFile(file, *cloud) == -1) {

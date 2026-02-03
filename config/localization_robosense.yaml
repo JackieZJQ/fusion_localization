@@ -1,6 +1,6 @@
 YAML: 1.0
 
-map_data: /home/jackie/robobus_localization/map_data/
+map_data: /home/jackie/robobus_localization/map_data
 origin:
   - 630224.5820145458
   - 3480549.440772983
@@ -39,7 +39,13 @@ ndt:
   resolution: 1.0
   transformation_epsilon: 0.05
   step_size: 0.7
-  max_iter: 20
+  max_iter: 10
+gicp:
+  num_threads: 4
+  k_correspondences: 20
+  max_iter: 20 
+  trans_eps: 0.01
+  corr_dist: 1.0
 imu:
   init_imu_online: false
   init_bg: [-0.000039076, -0.0000166452, 0.0000140627]
