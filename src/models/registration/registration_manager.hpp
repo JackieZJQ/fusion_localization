@@ -42,6 +42,10 @@ public:
 
   float GetTransformationProbaility();
 
+  float GetFinalIterNum();
+
+  bool HasConverged();
+
   void Stop();
 
   using Ptr = std::shared_ptr<localization::RegistrationManager>;

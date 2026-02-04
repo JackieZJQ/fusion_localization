@@ -1,5 +1,6 @@
 #include "models/registration/registration_manager.hpp"
 #include "models/registration/fast_gicp_registration.hpp"
+#include "common/timer.hpp"
 
 namespace localization {
 RegistrationManager::RegistrationManager(const YAML::Node& yaml)
@@ -31,7 +32,21 @@ void RegistrationManager::UpdateRefCloud(const CloudPtr& ref_cloud_ptr) {
 }
 
 bool RegistrationManager::Align(const CloudPtr& cloud_ptr, const Eigen::Matrix4f& predict_pose, Eigen::Matrix4f& result_pose) {
+
+  //Timer t("RegistrationManager::Align", 40);
+
+  auto t0 = std::chrono::steady_clock::now();
   std::lock_guard<std::mutex> mutex(registration_mutex_);
+  auto t1 = std::chrono::steady_clock::now();
+
+  long long start = std::chrono::time_point_cast<std::chrono::milliseconds>(t0).time_since_epoch().count();
+  long long end = std::chrono::time_point_cast<std::chrono::milliseconds>(t1).time_since_epoch().count();
+
+  double lock_wait_ms = end - start;
+
+  if (lock_wait_ms > 1.0) 
+    LOG(WARNING) << "RegistrationManager::Align lock wait: " << lock_wait_ms;
+  
 
   CloudPtr result_cloud_ptr(new PointCloudType);  
   bool result = registration_ptr_->ScanMatch(cloud_ptr, predict_pose, result_cloud_ptr, result_pose);
@@ -45,6 +60,14 @@ float RegistrationManager::GetFitnessScore() {
 
 float RegistrationManager::GetTransformationProbaility() {
   return registration_ptr_->GetTransformationProbaility();
+}
+
+float RegistrationManager::GetFinalIterNum() {
+  return registration_ptr_->GetFinalIterNum();
+}
+
+bool RegistrationManager::HasConverged() {
+  return registration_ptr_->HasConverged();
 }
 
 void RegistrationManager::WorkerThreadLoop() {

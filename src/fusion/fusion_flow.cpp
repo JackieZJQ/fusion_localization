@@ -80,10 +80,10 @@ void FusionFlow::GnssCallback(const sensor_msgs::msg::NavSatFix::SharedPtr gnss_
 
 void FusionFlow::CloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud_msg_ptr) {
 
-  LOG(INFO) << "#########################################################################################\n";
-
+  //LOG(INFO) << "####################################################################\n";
+  
   {
-    Timer timer("CloudCallback::Convert");
+    //Timer timer("CloudCallback::Convert");
     // 对点云数量做滤波
     CLOUD::Ptr cloud_ptr(new CLOUD);
     cloud_ptr->timestamp_ = cloud_msg_ptr->header.stamp.sec + cloud_msg_ptr->header.stamp.nanosec * 1e-9;
@@ -94,7 +94,7 @@ void FusionFlow::CloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cl
   //todo
   //点云定位完成后,获取当前eskf状态
   {
-    Timer timer("CloudCallback::Publish");
+    //Timer timer("CloudCallback::Publish");
     PublishOdom();
     PublishLidarTf();
   }

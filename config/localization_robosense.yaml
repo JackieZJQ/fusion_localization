@@ -45,7 +45,7 @@ gicp:
   k_correspondences: 20
   max_iter: 20 
   trans_eps: 0.01
-  corr_dist: 1.0
+  corr_dist: 0.8
 imu:
   init_imu_online: false
   init_bg: [-0.000039076, -0.0000166452, 0.0000140627]

@@ -22,6 +22,8 @@ public:
 
   float GetFitnessScore() override;
   float GetTransformationProbaility() override;
+  float GetFinalIterNum() override;
+  bool HasConverged() override;
 
   using Ptr = std::shared_ptr<localization::FastGICPRegistration>;
 
@@ -30,7 +32,6 @@ private:
 
   //预热：避免首次配准耗时尖峰
   bool WarmUp(const CloudPtr& input_target);
-
 private:
   fast_gicp::FastGICP<PointType, PointType>::Ptr fast_gicp_ptr_;
   bool is_warmedup_ = false;

@@ -29,6 +29,9 @@ public:
                          Eigen::Matrix4f& result_pose) = 0;
   virtual float GetFitnessScore() = 0;
   virtual float GetTransformationProbaility() = 0;
+  virtual float GetFinalIterNum() = 0;
+  virtual bool HasConverged() = 0;
+
 
   using Ptr = std::shared_ptr<localization::RegistrationInterface>;
 };

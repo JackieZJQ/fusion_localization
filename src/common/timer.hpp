@@ -19,23 +19,23 @@
 
 class Timer {
 public:
-  Timer(const char* name) : m_Name(name), m_Stop(false) {
+  Timer(const char* name, double warn_time = 30.0) : m_Name(name), m_Stop(false), m_warn_time(warn_time) {
     m_StartTimepoint = std::chrono::high_resolution_clock::now();
   }
 
-  void Stop() {
+  double Stop() {
     auto endTimePoint = std::chrono::high_resolution_clock::now();
 
     long long start = std::chrono::time_point_cast<std::chrono::milliseconds>(m_StartTimepoint).time_since_epoch().count();
     long long end = std::chrono::time_point_cast<std::chrono::milliseconds>(endTimePoint).time_since_epoch().count();
 
-    double time = end - start;
-    if (time < 30) 
-      LOG(INFO) << m_Name << ":" << time << "ms\n";
-    else
-      LOG(WARNING) << m_Name << ":" << time << "ms" << " !!!PROCESS TIME OVER 30MS!!!";
+    double process_time = end - start;
+    if (process_time > m_warn_time) 
+      LOG(WARNING) << m_Name << ":" << process_time << "ms" << " !!!NOTICE PROCESS TIME!!!";
 
     m_Stop = true;
+
+    return process_time;
   }
 
   ~Timer() {
@@ -44,6 +44,7 @@ public:
   }
 
 private:
+  const double m_warn_time;
   const char* m_Name;
   std::chrono::time_point<std::chrono::high_resolution_clock> m_StartTimepoint;
   bool m_Stop;

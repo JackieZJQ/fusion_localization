@@ -3,6 +3,7 @@
 
 #include "models/registration/fast_gicp_registration.hpp"
 #include "common/point_types.h"
+#include "common/timer.hpp"
 
 namespace localization {
 FastGICPRegistration::FastGICPRegistration(const YAML::Node& yaml)
@@ -31,18 +32,19 @@ bool FastGICPRegistration::SetRegistrationParam(int num_threads, int k_correspon
   fast_gicp_ptr_->setTransformationEpsilon(trans_eps);
   fast_gicp_ptr_->setMaxCorrespondenceDistance(corr_dist);
 
-  LOG(INFO) << "初始化新FASTGICP, 匹配参数为:\n"
+  LOG(INFO) << "############初始化新FASTGICP, 匹配参数如下##############\n"
             << "num of threads: " << num_threads << "\n"
             << "correspondence randomness: " << k_correspondences << "\n"
             << "max correspondenceDistance: " << corr_dist << "\n"
             << "transformation epsilon: " << trans_eps << "\n"
-            << "maximum iterations: " << max_iter << "\n"
-            << std::endl;
+            << "maximum iterations: " << max_iter << "\n";
 
   return true;
 }
 
 bool FastGICPRegistration::SetInputTarget(const CloudPtr &input_target) {
+  //Timer t("FastGICP::SetInputTartget", 40);
+
   if (!fast_gicp_ptr_) {
     LOG(INFO) << "fast gicp ptr is bull, but receive input target";  
     return false;
@@ -65,10 +67,19 @@ bool FastGICPRegistration::ScanMatch(const CloudPtr &input_source,
     return false;
   }
 
-  fast_gicp_ptr_->setInputSource(input_source);
-  fast_gicp_ptr_->align(*result_cloud_ptr, predict_pose);
+  {
+    //Timer t("FastGICP::SetInputSource", 40);
+    fast_gicp_ptr_->setInputSource(input_source);
+  }
+
+  {
+    //Timer t("FastGICP::Align", 40);
+    fast_gicp_ptr_->align(*result_cloud_ptr, predict_pose);
+  }
+
 
   result_pose = fast_gicp_ptr_->getFinalTransformation();
+
   return fast_gicp_ptr_->hasConverged();
 }
 
@@ -88,7 +99,24 @@ float FastGICPRegistration::GetTransformationProbaility() {
   return fast_gicp_ptr_->getFitnessScore();
 }
 
-bool FastGICPRegistration::WarmUp(const CloudPtr& input_target) {
+float FastGICPRegistration::GetFinalIterNum() {
+  if (!fast_gicp_ptr_) {
+    return 0.0f;
+  }
+
+  return fast_gicp_ptr_->getFinalNumIteration();
+}
+
+bool FastGICPRegistration::HasConverged() {
+  if (!fast_gicp_ptr_) {
+    return false;
+  }
+
+  return fast_gicp_ptr_->hasConverged();
+}
+
+    bool FastGICPRegistration::WarmUp(const CloudPtr &input_target)
+{
   if (!fast_gicp_ptr_ || !input_target) {
     return false;
   }
