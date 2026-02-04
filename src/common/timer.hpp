@@ -30,6 +30,10 @@ public:
     long long end = std::chrono::time_point_cast<std::chrono::milliseconds>(endTimePoint).time_since_epoch().count();
 
     LOG(INFO) << m_Name << ":" << (end - start) << "ms\n";
+    
+    if ((end -start) > 50)
+      LOG(WARNING) << "PROCESS TIME OVER 50MS!!!";
+
     m_Stop = true;
   }
 

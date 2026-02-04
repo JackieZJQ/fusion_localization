@@ -1,11 +1,12 @@
 #include "models/registration/registration_manager.hpp"
+#include "models/registration/fast_gicp_registration.hpp"
 
 namespace localization {
 RegistrationManager::RegistrationManager(const YAML::Node& yaml)
   : yaml_(yaml) {
 
   // 主ndt_初始化
-  registration_ptr_ = std::make_shared<localization::NDTOMPRegistration>(yaml_);
+  registration_ptr_ = std::make_shared<localization::FastGICPRegistration>(yaml_);
 
   is_running_ = true;
   worker_ = std::thread(&RegistrationManager::WorkerThreadLoop, this); 
@@ -64,7 +65,7 @@ void RegistrationManager::WorkerThreadLoop() {
     }
 
     //重置registration_secondar ndt
-    registration_secondary_ptr_ = std::make_shared<localization::NDTOMPRegistration>(yaml_);
+    registration_secondary_ptr_ = std::make_shared<localization::FastGICPRegistration>(yaml_);
     registration_secondary_ptr_->SetInputTarget(ref_cloud_ptr);
 
     //切换ndt_与ndt_secondary

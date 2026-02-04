@@ -79,7 +79,7 @@ void FusionFlow::GnssCallback(const sensor_msgs::msg::NavSatFix::SharedPtr gnss_
 }
 
 void FusionFlow::CloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud_msg_ptr) {
-  //Timer timer("CloudCallback");
+  Timer timer("CloudCallback");
   // 对点云数量做滤波
   CLOUD::Ptr cloud_ptr(new CLOUD);
   cloud_ptr->timestamp_ = cloud_msg_ptr->header.stamp.sec + cloud_msg_ptr->header.stamp.nanosec * 1e-9;

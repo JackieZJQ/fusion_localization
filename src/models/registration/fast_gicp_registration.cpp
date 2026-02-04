@@ -5,19 +5,20 @@
 #include "common/point_types.h"
 
 namespace localization {
-FastGICPRegistration::FastGICPRegistration(const YAML::Node &yaml)
+FastGICPRegistration::FastGICPRegistration(const YAML::Node& yaml)
   : fast_gicp_ptr_(new fast_gicp::FastGICP<PointType, PointType>()) {
-  int num_threads = yaml["gicp"]["num_threads"] ? yaml["num_threads"].as<int>() : 4;
-  int k_correspondences = yaml["gicp"]["k_correspondences"] ? yaml["k_correspondences"].as<int>() : 20;
-  int max_iter = yaml["gicp"]["max_iter"] ? yaml["max_iter"].as<int>() : 40;
-  double trans_eps = yaml["gicp"]["trans_eps"] ? yaml["trans_eps"].as<double>() : 1e-3;
-  double corr_dist = yaml["gicp"]["corr_dist"] ? yaml["corr_dist"].as<double>() : 1.0;
+  int num_threads = yaml["gicp"]["num_threads"] ? yaml["gicp"]["num_threads"].as<int>() : 4;
+  int k_correspondences = yaml["gicp"]["k_correspondences"] ? yaml["gicp"]["k_correspondences"].as<int>() : 20;
+  int max_iter = yaml["gicp"]["max_iter"] ? yaml["gicp"]["max_iter"].as<int>() : 40;
+  double trans_eps = yaml["gicp"]["trans_eps"] ? yaml["gicp"]["trans_eps"].as<double>() : 1e-3;
+  double corr_dist = yaml["gicp"]["corr_dist"] ? yaml["gicp"]["corr_dist"].as<double>() : 1.0;
 
   SetRegistrationParam(num_threads, k_correspondences, max_iter, trans_eps, corr_dist);
 }
 
 FastGICPRegistration::FastGICPRegistration(int num_threads, int k_correspondences, int max_iter, double trans_eps, double corr_dist)
   : fast_gicp_ptr_(new fast_gicp::FastGICP<PointType, PointType>()) {
+
   SetRegistrationParam(num_threads, k_correspondences, max_iter, trans_eps, corr_dist);
 }
 

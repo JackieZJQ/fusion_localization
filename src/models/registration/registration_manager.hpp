@@ -22,7 +22,6 @@
 #include <Eigen/Dense>
 
 #include "models/registration/registration_interface.hpp"
-#include "models/registration/ndt_omp_registration.hpp"
 #include "models/registration/fast_gicp_registration.hpp"
 
 #include "common/point_types.h"
