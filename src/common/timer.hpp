@@ -29,10 +29,11 @@ public:
     long long start = std::chrono::time_point_cast<std::chrono::milliseconds>(m_StartTimepoint).time_since_epoch().count();
     long long end = std::chrono::time_point_cast<std::chrono::milliseconds>(endTimePoint).time_since_epoch().count();
 
-    LOG(INFO) << m_Name << ":" << (end - start) << "ms\n";
-    
-    if ((end -start) > 50)
-      LOG(WARNING) << "PROCESS TIME OVER 50MS!!!";
+    double time = end - start;
+    if (time < 30) 
+      LOG(INFO) << m_Name << ":" << time << "ms\n";
+    else
+      LOG(WARNING) << m_Name << ":" << time << "ms" << " !!!PROCESS TIME OVER 30MS!!!";
 
     m_Stop = true;
   }

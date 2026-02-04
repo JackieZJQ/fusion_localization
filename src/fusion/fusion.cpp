@@ -63,27 +63,38 @@ bool Fusion::InitImu() {
 }
 
 void Fusion::ProcessMeasurements(const MessageSync::MeasureGroup& meas) {
-  //Timer timer("Fusion::ProcessMeasurements");
+  Timer timer("Fusion::ProcessMeasurements");
   synced_measures_ = meas;
 
   //todo
   //imu_need_init_->has_imu_inited_?
   if (imu_need_init_) {
+    Timer t("Fusion::InitImuOnline");
     InitImuOnline();
     return;
   }
 
   //以下三步与LIO一致，只是align完成地图匹配工作
   if (state_ == state::kWORKING) {
-    DoPredict();
-    DoUndistort();
+    {
+      Timer t("Fusion::DoPredict");
+      DoPredict();
+    }
+
+    {
+      Timer t("Fusion::DoUndistort");
+      DoUndistort();
+    }
   } else {
     // why here ?
     undistorted_scan_ = synced_measures_.lidar_;
     undistorted_scan_->header.stamp = static_cast<uint64_t>(synced_measures_.lidar_begin_time_ * 1e6);
   }
 
-  DoAlign();
+  {
+    Timer t("Fusion::DoAlign");
+    DoAlign();
+  }
 }
 
 void Fusion::InitImuOnline() {
@@ -178,19 +189,25 @@ void Fusion::DoUndistort() {
 }
 
 void Fusion::DoAlign() {
-  FullCloudPtr undistorted_scan_trans(new FullPointCloudType);
-  pcl::transformPointCloud(*undistorted_scan_, *undistorted_scan_trans, TIL_.matrix());
-  undistorted_scan_ = undistorted_scan_trans;
-  current_scan_ = ConvertToCloud<FullPointType>(undistorted_scan_);
-  current_scan_ = VoxelCloud(current_scan_, 0.5);
+  {
+    Timer t("Fusion::DoAlign::Transform+voxel");
+    FullCloudPtr undistorted_scan_trans(new FullPointCloudType);
+    pcl::transformPointCloud(*undistorted_scan_, *undistorted_scan_trans, TIL_.matrix());
+    undistorted_scan_ = undistorted_scan_trans;
+    current_scan_ = ConvertToCloud<FullPointType>(undistorted_scan_);
+    current_scan_ = VoxelCloud(current_scan_, 0.5);
+  }
+
 
   if (state_ == state::kWAITINGFORRTK) {
+    Timer t("Fusion::DoAlign::SearchRTK");
     if (last_gnss_ != nullptr) { //若存在最近的RTK信号，则尝试初始化
       if (SearchRtk()) {
         state_ = state::kWORKING;
       }
     }
   } else {
+    Timer t("Fusion::DoAlign::DoLidarLocalization");
     DoLidarLocalization();
   }
 }
@@ -296,22 +313,36 @@ void Fusion::AlignForGrid(GridSearchResult& gr) {
 }
 
 bool Fusion::DoLidarLocalization() {
-  SE3 pred = eskf_.GetNominalSE3();
-  tile_manager_ptr_->UpdateCurrentPose(pred);
-  if (tile_manager_ptr_->HasMapChanged()) {
+
+  {
+    Timer t("Fusion::DoAlign::DoLidarLocalization::UpdatePose");
+
+    SE3 pred = eskf_.GetNominalSE3();
+    tile_manager_ptr_->UpdateCurrentPose(pred);
+  }
+
+  {
+    Timer t("Fusion::DoAlign::DoLidarLocalization::UpdateRefCloud");
+    if (tile_manager_ptr_->HasMapChanged()) {
     CloudPtr ref_cloud = tile_manager_ptr_->GetRefCloud();
     std::map<Vec2i, CloudPtr, less_vec<2>> map_data = tile_manager_ptr_->GetLoadedTiles();
 
     registration_manager_ptr_->UpdateRefCloud(ref_cloud);
     //更新UI
+    }
   }
 
-  Eigen::Matrix4f pred_pose = pred.matrix().cast<float>();
-  Eigen::Matrix4f result_pose;
-  registration_manager_ptr_->Align(current_scan_, pred_pose, result_pose);
+  {
+    Timer t("Fusion::DoAlign::DoLidarLocalization::Align");
 
-  SE3 pose_se3 = Mat4ToSE3(result_pose);
-  eskf_.ObserveSE3(pose_se3, 1e-1, 1e-2);
+    SE3 pred = eskf_.GetNominalSE3();
+    Eigen::Matrix4f pred_pose = pred.matrix().cast<float>();
+    Eigen::Matrix4f result_pose;
+    registration_manager_ptr_->Align(current_scan_, pred_pose, result_pose);
+
+    SE3 pose_se3 = Mat4ToSE3(result_pose);
+    eskf_.ObserveSE3(pose_se3, 1e-1, 1e-2);
+  }
 
   return true;
 }
