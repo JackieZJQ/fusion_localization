@@ -43,7 +43,6 @@ bool FastGICPRegistration::SetRegistrationParam(int num_threads, int k_correspon
 }
 
 bool FastGICPRegistration::SetInputTarget(const CloudPtr &input_target) {
-  //Timer t("FastGICP::SetInputTartget", 40);
   
   fast_gicp_ptr_->setInputTarget(input_target);
 
@@ -59,22 +58,11 @@ bool FastGICPRegistration::ScanMatch(const CloudPtr &input_source,
                                      const Eigen::Matrix4f &predict_pose,
                                      CloudPtr result_cloud_ptr,
                                      Eigen::Matrix4f &result_pose) {
-
-  if (!is_warmedup_) {
-    LOG(WARNING) << "scanmatch before warmup.";
-  }
-
-  {
-    //Timer t("FastGICP::SetInputSource", 40);
-    fast_gicp_ptr_->setInputSource(input_source);
-  }
-
-  {
-    //Timer t("FastGICP::Align", 40);
-    fast_gicp_ptr_->align(*result_cloud_ptr, predict_pose);
-  }
-
-
+  
+  fast_gicp_ptr_->setInputSource(input_source);
+  
+  fast_gicp_ptr_->align(*result_cloud_ptr, predict_pose);
+  
   result_pose = fast_gicp_ptr_->getFinalTransformation();
 
   return fast_gicp_ptr_->hasConverged();

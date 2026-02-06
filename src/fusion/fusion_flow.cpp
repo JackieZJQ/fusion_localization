@@ -79,8 +79,6 @@ void FusionFlow::GnssCallback(const sensor_msgs::msg::NavSatFix::SharedPtr gnss_
 }
 
 void FusionFlow::CloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud_msg_ptr) {
-
-  //LOG(INFO) << "####################################################################\n";
   
   {
     //Timer timer("CloudCallback::Convert");

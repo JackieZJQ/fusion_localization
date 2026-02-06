@@ -28,6 +28,8 @@ void CloudConvert::RobosenseHandler(const sensor_msgs::msg::PointCloud2::ConstPt
   pcl::PointCloud<robosense_ros::Point> pl_orig;
   pcl::fromROSMsg(*msg, pl_orig);
   int plsize = pl_orig.size();
+  LOG(INFO) << plsize;
+
   cloud_out_.reserve(plsize);
 
   double time = msg->header.stamp.sec + msg->header.stamp.nanosec * 1e-9;
@@ -47,6 +49,7 @@ void CloudConvert::RobosenseHandler(const sensor_msgs::msg::PointCloud2::ConstPt
 
     cloud_out_.points.push_back(added_pt);
   }
+
 }
 
 void CloudConvert::LoadFromYAML() {

@@ -30,7 +30,6 @@ find_package(Glog REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(TBB REQUIRED)
-find_package(ndt_omp REQUIRED)
 find_package(OpenMP REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
@@ -72,7 +71,6 @@ ament_target_dependencies(fusion_localization_node
   tf2_ros
   tf2_geometry_msgs 
   pcl_conversions 
-  ndt_omp 
   OpenMP)
 
 target_link_libraries(fusion_localization_node 
