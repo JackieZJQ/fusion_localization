@@ -309,24 +309,24 @@ bool Fusion::DoLidarLocalization() {
   Eigen::Matrix4f pred_pose = pred.matrix().cast<float>();
   Eigen::Matrix4f result_pose;
 
-  //double elapsed_ms;
+  double elapsed_ms;
   {
-    //Timer t("FastGICP::Align", 40);
+    Timer t("FastGICP::Align", 30);
     bool converged = registration_manager_ptr_->Align(current_scan_, pred_pose, result_pose);
 
-    //elapsed_ms = t.Stop();
-    //LOG(INFO) << "elapsed_ms: " << elapsed_ms;
+    elapsed_ms = t.Stop();
+    LOG(INFO) << "elapsed_ms: " << elapsed_ms;
   }
 
-  // if (elapsed_ms > 40.0) {
-  //   float dx = (result_pose.block<3, 1>(0, 3) - pred_pose.block<3, 1>(0, 3)).norm();
+  if (elapsed_ms > 30.0) {
+    float dx = (result_pose.block<3, 1>(0, 3) - pred_pose.block<3, 1>(0, 3)).norm();
 
-  //   LOG(WARNING) << "iter=" << registration_manager_ptr_->GetFinalIterNum()
-  //             << " converged=" << registration_manager_ptr_->HasConverged()
-  //             << " fitness=" << registration_manager_ptr_->GetFitnessScore()
-  //             << " pred->result delta = " << dx
-  //             << "\n#########################################";
-  // }
+    LOG(WARNING) << "iter=" << registration_manager_ptr_->GetFinalIterNum()
+              << " converged=" << registration_manager_ptr_->HasConverged()
+              << " fitness=" << registration_manager_ptr_->GetFitnessScore()
+              << " pred->res`ult delta = " << dx
+              << "\n#########################################";
+  }
 
   SE3 pose_se3 = Mat4ToSE3(result_pose);
   eskf_.ObserveSE3(pose_se3, 1e-1, 1e-2);

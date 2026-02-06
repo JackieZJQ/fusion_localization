@@ -14,6 +14,7 @@
 #include <fstream>
 #include <glog/logging.h>
 #include <pcl/io/pcd_io.h>
+#include <pcl/filters/voxel_grid.h>
 
 #include "tiles/tile_manager.hpp"
 
@@ -139,7 +140,7 @@ std::set<Vec2i, less_vec<2>> TileManager::PoseToSurroundTiles(const SE3& pose) {
 }
 
 CloudPtr TileManager::LoadTileFromDisk(const Vec2i& index) {
-  //加载点云
+  // 加载点云
   std::string file = map_tiles_root_dir_ + "/" + std::to_string(index[0]) + "_" + std::to_string(index[1]) + ".pcd";
   CloudPtr cloud(new PointCloudType);
 
@@ -148,7 +149,15 @@ CloudPtr TileManager::LoadTileFromDisk(const Vec2i& index) {
     return nullptr;
   }
 
-  return cloud;
+  // 拼接前下采样
+  CloudPtr filtered_cloud(new PointCloudType);
+
+  pcl::VoxelGrid<PointType> filter;
+  filter.setInputCloud(cloud);
+  filter.setLeafSize(0.5f, 0.5f, 0.5f);
+  filter.filter(*filtered_cloud);
+
+  return filtered_cloud;
 }
 
 void TileManager::BackgroundTileManagementLoop() {
@@ -230,10 +239,21 @@ void TileManager::BackgroundTileManagementLoop() {
       loaded_tiles_.swap(loaded_tiles);
     }
 
-    //8.更新ref_cloud_
+    //8.过滤new_ref_cloud
+    const size_t kMaxPoints = 500000;
+    CloudPtr filtered_ref_cloud = new_ref_cloud;
+    
+    if (new_ref_cloud->size() > kMaxPoints){
+      pcl::VoxelGrid<PointType> filter;
+      filter.setInputCloud(new_ref_cloud);
+      filter.setLeafSize(0.5f, 0.5f, 0.5f);
+      filter.filter(*filtered_ref_cloud);
+    }
+
+    //9.更新ref_cloud_
     {
       std::lock_guard<std::mutex> lock(ref_cloud_mutex_);
-      ref_cloud_.swap(new_ref_cloud);
+      ref_cloud_.swap(filtered_ref_cloud);
 
       ref_cloud_initialized_.store(true, std::memory_order_release);
       ref_cloud_changed_.store(true, std::memory_order_release);

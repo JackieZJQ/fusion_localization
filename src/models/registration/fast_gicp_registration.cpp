@@ -44,13 +44,10 @@ bool FastGICPRegistration::SetRegistrationParam(int num_threads, int k_correspon
 
 bool FastGICPRegistration::SetInputTarget(const CloudPtr &input_target) {
   //Timer t("FastGICP::SetInputTartget", 40);
-
-  if (!fast_gicp_ptr_) {
-    LOG(INFO) << "fast gicp ptr is bull, but receive input target";  
-    return false;
-  }
-    
+  
   fast_gicp_ptr_->setInputTarget(input_target);
+
+  LOG(INFO) << "FAST GICP 接收 INPUT TARGET, 点云数量为: " << input_target->size();
 
   if (!is_warmedup_)
     WarmUp(input_target);
@@ -62,9 +59,9 @@ bool FastGICPRegistration::ScanMatch(const CloudPtr &input_source,
                                      const Eigen::Matrix4f &predict_pose,
                                      CloudPtr result_cloud_ptr,
                                      Eigen::Matrix4f &result_pose) {
-  if (!fast_gicp_ptr_) {
-    LOG(INFO) << "fast gicp ptr is null, but receive input source";
-    return false;
+
+  if (!is_warmedup_) {
+    LOG(WARNING) << "scanmatch before warmup.";
   }
 
   {
@@ -83,57 +80,41 @@ bool FastGICPRegistration::ScanMatch(const CloudPtr &input_source,
   return fast_gicp_ptr_->hasConverged();
 }
 
-float FastGICPRegistration::GetFitnessScore() {
-  if (!fast_gicp_ptr_) {
-    return 0.0f;
-  }
+bool FastGICPRegistration::WarmUp(const CloudPtr &input_target) {
+  if (input_target == nullptr) return false;
+
+  // 1. 对 input target 下采样
+  PointCloudType::Ptr warmup_cloud(new PointCloudType);
+  pcl::VoxelGrid<PointType> filter;
+  filter.setInputCloud(input_target);
+  filter.setLeafSize(2.0f, 2.0f, 2.0f); // 预热用可设大一点
+  filter.filter(*warmup_cloud);
+
+  //LOG(INFO) << "warmup_cloud szie: " << warmup_cloud->size();
+
+  // 2. 预热
+  fast_gicp_ptr_->setInputSource(warmup_cloud);
+  PointCloudType out_cloud;
+  fast_gicp_ptr_->align(out_cloud, Eigen::Matrix4f::Identity());
   
-  return fast_gicp_ptr_->getFitnessScore();
-}
-
-float FastGICPRegistration::GetTransformationProbaility() {
-  if (!fast_gicp_ptr_) {
-    return 0.0f;
-  }
-  
-  return fast_gicp_ptr_->getFitnessScore();
-}
-
-float FastGICPRegistration::GetFinalIterNum() {
-  if (!fast_gicp_ptr_) {
-    return 0.0f;
-  }
-
-  return fast_gicp_ptr_->getFinalNumIteration();
-}
-
-bool FastGICPRegistration::HasConverged() {
-  if (!fast_gicp_ptr_) {
-    return false;
-  }
-
-  return fast_gicp_ptr_->hasConverged();
-}
-
-    bool FastGICPRegistration::WarmUp(const CloudPtr &input_target)
-{
-  if (!fast_gicp_ptr_ || !input_target) {
-    return false;
-  }
-
-  PointCloudType::Ptr dummy(new PointCloudType);
-  pcl::VoxelGrid<PointType> vg;
-  vg.setInputCloud(input_target);
-  vg.setLeafSize(1.0f, 1.0f, 1.0f); // 预热用可设大一点
-  vg.filter(*dummy);
-
-  fast_gicp_ptr_->setInputSource(dummy);
-  PointCloudType out;
-  fast_gicp_ptr_->align(out, Eigen::Matrix4f::Identity());
-  fast_gicp_ptr_->setInputSource(nullptr); // 清掉dummy，之后再设置真实 source
-
   is_warmedup_ = true;
 
   return true;
+}
+
+float FastGICPRegistration::GetFitnessScore() {
+  return fast_gicp_ptr_->getFitnessScore();
+}
+
+float FastGICPRegistration::GetTransformationProbaility() {  
+  return fast_gicp_ptr_->getFitnessScore();
+}
+
+float FastGICPRegistration::GetFinalIterNum() {  
+  return fast_gicp_ptr_->getFinalNumIteration();
+}
+
+bool FastGICPRegistration::HasConverged() {  
+  return fast_gicp_ptr_->hasConverged();
 }
 } // namespace localization

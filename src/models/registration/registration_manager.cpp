@@ -29,6 +29,10 @@ void RegistrationManager::UpdateRefCloud(const CloudPtr& ref_cloud_ptr) {
   std::lock_guard<std::mutex> mutex(ref_cloud_mutex_);
   ref_cloud_ptr_ = ref_cloud_ptr;
   ref_cloud_updated_.store(true, std::memory_order_release);
+
+  if (ref_cloud_ptr_ == nullptr) {
+    LOG(INFO) << "ref_cloud_ptr nullptr";
+  }
 }
 
 bool RegistrationManager::Align(const CloudPtr& cloud_ptr, const Eigen::Matrix4f& predict_pose, Eigen::Matrix4f& result_pose) {
@@ -89,6 +93,16 @@ void RegistrationManager::WorkerThreadLoop() {
 
     //重置registration_secondar ndt
     registration_secondary_ptr_ = std::make_shared<localization::FastGICPRegistration>(yaml_);
+
+    if (!ref_cloud_ptr || ref_cloud_ptr->empty()) {
+      LOG(WARNING) << "[RegistrationManager::WorkerThreadLoop]: ref_cloud empty, skip update.";
+
+      continue;
+    }
+
+    std::vector<int> indices;
+    pcl::removeNaNFromPointCloud(*ref_cloud_ptr, *ref_cloud_ptr, indices);
+
     registration_secondary_ptr_->SetInputTarget(ref_cloud_ptr);
 
     //切换ndt_与ndt_secondary
