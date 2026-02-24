@@ -8,11 +8,12 @@
 namespace localization {
 FastGICPRegistration::FastGICPRegistration(const YAML::Node& yaml)
   : fast_gicp_ptr_(new fast_gicp::FastGICP<PointType, PointType>()) {
-  int num_threads = yaml["gicp"]["num_threads"] ? yaml["gicp"]["num_threads"].as<int>() : 4;
+  
+  int num_threads = yaml["gicp"]["num_threads"] ? yaml["gicp"]["num_threads"].as<int>() : 16;
   int k_correspondences = yaml["gicp"]["k_correspondences"] ? yaml["gicp"]["k_correspondences"].as<int>() : 20;
-  int max_iter = yaml["gicp"]["max_iter"] ? yaml["gicp"]["max_iter"].as<int>() : 40;
-  double trans_eps = yaml["gicp"]["trans_eps"] ? yaml["gicp"]["trans_eps"].as<double>() : 1e-3;
-  double corr_dist = yaml["gicp"]["corr_dist"] ? yaml["gicp"]["corr_dist"].as<double>() : 1.0;
+  int max_iter = yaml["gicp"]["max_iter"] ? yaml["gicp"]["max_iter"].as<int>() : 20;
+  double trans_eps = yaml["gicp"]["trans_eps"] ? yaml["gicp"]["trans_eps"].as<double>() : 1e-2;
+  double corr_dist = yaml["gicp"]["corr_dist"] ? yaml["gicp"]["corr_dist"].as<double>() : 0.8;
 
   SetRegistrationParam(num_threads, k_correspondences, max_iter, trans_eps, corr_dist);
 }
@@ -32,12 +33,13 @@ bool FastGICPRegistration::SetRegistrationParam(int num_threads, int k_correspon
   fast_gicp_ptr_->setTransformationEpsilon(trans_eps);
   fast_gicp_ptr_->setMaxCorrespondenceDistance(corr_dist);
 
-  LOG(INFO) << "############初始化新FASTGICP, 匹配参数如下##############\n"
+  LOG(INFO) << "\n=================初始化新FASTGICP, 匹配参数如下=============\n"
             << "num of threads: " << num_threads << "\n"
             << "correspondence randomness: " << k_correspondences << "\n"
             << "max correspondenceDistance: " << corr_dist << "\n"
             << "transformation epsilon: " << trans_eps << "\n"
-            << "maximum iterations: " << max_iter << "\n";
+            << "maximum iterations: " << max_iter << "\n"
+            << "============================================================";
 
   return true;
 }
@@ -46,7 +48,7 @@ bool FastGICPRegistration::SetInputTarget(const CloudPtr &input_target) {
   
   fast_gicp_ptr_->setInputTarget(input_target);
 
-  LOG(INFO) << "FAST GICP 接收 INPUT TARGET, 点云数量为: " << input_target->size();
+  LOG(INFO) << "===FAST GICP 接收 INPUT TARGET, 点云数量为: " << input_target->size();
 
   if (!is_warmedup_)
     WarmUp(input_target);

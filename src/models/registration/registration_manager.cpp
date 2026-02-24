@@ -48,7 +48,7 @@ bool RegistrationManager::Align(const CloudPtr& cloud_ptr, const Eigen::Matrix4f
 
   double lock_wait_ms = end - start;
 
-  if (lock_wait_ms > 1.0) 
+  if (lock_wait_ms > 1.0)  
     LOG(WARNING) << "RegistrationManager::Align lock wait: " << lock_wait_ms;
   
 

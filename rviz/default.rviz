@@ -6,7 +6,7 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
-        - /PointCloud22
+        - /PointCloud21
       Splitter Ratio: 0.5088235139846802
     Tree Height: 787
   - Class: rviz_common/Selection
@@ -110,7 +110,7 @@ Visualization Manager:
         Durability Policy: Transient Local
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /map
+        Value: /localization/static_pointcloud_map
       Use Fixed Frame: true
       Use rainbow: true
       Value: true

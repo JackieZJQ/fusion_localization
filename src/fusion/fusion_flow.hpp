@@ -48,7 +48,7 @@ private:
 
   //发布rviz消息
   void PublishCurrentScan();
-  void PublishMap();
+  void PublishStaticPointcloudMap();
   void PublishOdom();
   void PublishLidarTf();
   void PublishLidarLocalization();
@@ -60,9 +60,9 @@ private:
 
   //发布定位数据
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr current_scan_publisher_;
-  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr map_publisher_;
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr static_pointcloud_map_publisher_;
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odometry_publisher_;
-  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr localization_publisher_;
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr fusion_localization_publisher_;
 
   //tf广播器
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
@@ -74,6 +74,8 @@ private:
   // 回调组
   rclcpp::CallbackGroup::SharedPtr sensor_callback_group_; // IMU/GNSS/Cloud 串行
   rclcpp::CallbackGroup::SharedPtr map_callback_group_;    // 地图发布可并行
+
+  // IMU/雷达并行
 };
 } // namesapce localization
 

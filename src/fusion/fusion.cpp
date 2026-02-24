@@ -12,6 +12,7 @@
  */
 
 #include "fusion/fusion.hpp"
+#include "glog/logging.h"
 
 namespace localization {
 Fusion::Fusion(const YAML::Node& yaml)
@@ -127,13 +128,11 @@ void Fusion::InitImuOffline() {
   
   imu_need_init_ = false;
 
-  LOG(INFO) << "\n"
-            << "###############################################\n"
-            << "###############使用YAML初始化IMU成功###########\n"
+  LOG(INFO) << "\n===============使用YAML初始化IMU成功=============\n"
             << "Init Bg: " << init_bg.transpose() << "\n"
             << "Init Ba: " << init_ba.transpose() << "\n"
             << "Gravity: " << gravity.transpose() << "\n"
-            << "###############################################";
+            << "=================================================";
 }
 
 void Fusion::DoPredict() {
@@ -198,7 +197,7 @@ void Fusion::DoAlign() {
 bool Fusion::SearchRtk() {
   if (init_failed_) {
     if ((last_gnss_->utm_pose_.translation() - last_searched_pose_.translation()).norm() < 20.0) {
-      LOG(INFO) << "skip this position";
+      LOG(INFO) << "skip this position.";
       return false;
     }
   }
@@ -212,9 +211,10 @@ bool Fusion::SearchRtk() {
   
   //todo
   //tile_manager_ptr是不是可以单独放在其他一个函数/线程，单独检测tile_manager的状态
-  if (!tile_manager_ptr_->HasMapInitialized()) {
-    LOG(INFO) << "map uninitialized";
-    return false;
+  if (!tile_manager_ptr_->HasMapInitialized()) return false;
+  else {
+    LOG(INFO) << "\n==============tile pointcloud map initialized==============\n"
+              << "===========================================================";
   }
 
   if (tile_manager_ptr_->HasMapChanged()) {
@@ -309,23 +309,24 @@ bool Fusion::DoLidarLocalization() {
   Eigen::Matrix4f pred_pose = pred.matrix().cast<float>();
   Eigen::Matrix4f result_pose;
 
+  double th = 40;
   double elapsed_ms;
   {
-    Timer t("FastGICP::Align", 30);
+    Timer t("FastGICP::Align", th);
     bool converged = registration_manager_ptr_->Align(current_scan_, pred_pose, result_pose);
 
     elapsed_ms = t.Stop();
     LOG(INFO) << "elapsed_ms: " << elapsed_ms;
   }
 
-  if (elapsed_ms > 30.0) {
+  if (elapsed_ms > th) {
     float dx = (result_pose.block<3, 1>(0, 3) - pred_pose.block<3, 1>(0, 3)).norm();
 
-    LOG(WARNING) << "iter=" << registration_manager_ptr_->GetFinalIterNum()
+    LOG(WARNING) << "\niter=" << registration_manager_ptr_->GetFinalIterNum()
               << " converged=" << registration_manager_ptr_->HasConverged()
               << " fitness=" << registration_manager_ptr_->GetFitnessScore()
               << " pred->res`ult delta = " << dx
-              << "\n#########################################";
+              << "\n==================================";
   }
 
   SE3 pose_se3 = Mat4ToSE3(result_pose);
@@ -360,7 +361,7 @@ FullCloudPtr Fusion::GetCurrentScan() const {
   return undistorted_scan_;
 }
 
-CloudPtr Fusion::GetVisualMap() const {
-  return tile_manager_ptr_->GetVisFullCloud();
+CloudPtr Fusion::GetStaticPointcloudMap() const {
+  return tile_manager_ptr_->GetStaticPointcloudMap();
 }
 }  //namespace localization

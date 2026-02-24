@@ -28,12 +28,22 @@ def generate_launch_description():
         output='screen',
     )
 
+    # rviz_node = Node(
+    #     package='rviz2',
+    #     executable='rviz2',
+    #     name='rviz2',
+    #     output='screen',
+    #     arguments=['-d', rviz_config,
+    #                '--ros-args', 
+    #                '--log-level', 'WARN',],
+    # )
+    
     rviz_node = Node(
         package='rviz2',
         executable='rviz2',
         name='rviz2',
         output='screen',
-        arguments=['-d', rviz_config],
+        arguments=['-d', rviz_config,],
     )
 
     # rosbag2 回放节点（若未提供 bag_path，可通过 launch 参数留空以跳过）

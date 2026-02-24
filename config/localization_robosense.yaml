@@ -5,38 +5,16 @@ origin:
   - 630224.5820145458
   - 3480549.440772983
   - 10.31984695419669
-rtk_has_rot: false
-rtk_outlier_th: 1.0
-rtk_pos_noise: 2.0
-rtk_height_noise_ratio: 10.0
-rtk_ang_noise: 5.0
-lidar_continuous_num: 5
-rtk_ext:
-  t: [0, 0.24, -0.283]
-loop_closing:
-  min_id_interval: 100
-  min_distance: 30
-  skip_id: 5
-  ndt_score_th: 4.5
-common:
-  dataset: robosense
-  lid_topic: rslidar_points
-  imu_topic: imu
-  time_sync_en: false
 preprocess:
   lidar_type: 2
   scan_line: 32
   time_scale: 1e-3
+  point_filter_num: 5
 mapping:
-  extrinsic_est_en: true
   extrinsic_T: [0, 0, 0]
   extrinsic_R: [1, 0, 0, 0, 1, 0, 0, 0, 1]
-point_filter_num: 5
-max_iteration: 20
-imu_has_gravity: true
-tile_size_meter: 100
 gicp:
-  num_threads: 8
+  num_threads: 16
   k_correspondences: 20
   max_iter: 20 
   trans_eps: 0.01
@@ -46,3 +24,5 @@ imu:
   init_bg: [-0.000039076, -0.0000166452, 0.0000140627]
   init_ba: [-0.0329902, -0.301577, -9.81437]
   gravity: [-0.0329934, -0.301606, -9.81531]
+tiles:
+  tile_size_meter: 100

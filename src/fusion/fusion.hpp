@@ -53,7 +53,7 @@ public:
   //获取当前状态
   NavStated::Ptr GetCurrentState() const;
   FullCloudPtr GetCurrentScan() const;
-  CloudPtr GetVisualMap() const;
+  CloudPtr GetStaticPointcloudMap() const;
 
   //RTK状态
   enum class state {
@@ -104,6 +104,7 @@ private:
 
   //滤波器
   ESKFD eskf_;
+  ESKFD eskf_realtime_;
   std::vector<NavStated> imu_states_;  //ESKF预测期间的状态
 
   FullCloudPtr undistorted_scan_ { new FullPointCloudType() }; //矫过畸变之后的点云

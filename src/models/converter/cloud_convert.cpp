@@ -28,9 +28,6 @@ void CloudConvert::RobosenseHandler(const sensor_msgs::msg::PointCloud2::ConstPt
   pcl::PointCloud<robosense_ros::Point> pl_orig;
   pcl::fromROSMsg(*msg, pl_orig);
   int plsize = pl_orig.size();
-  LOG(INFO) << plsize;
-
-  cloud_out_.reserve(plsize);
 
   double time = msg->header.stamp.sec + msg->header.stamp.nanosec * 1e-9;
 
@@ -56,7 +53,7 @@ void CloudConvert::LoadFromYAML() {
   time_scale_ = yaml_["preprocess"]["time_scale"].as<double>(); //todo 删除一些没用的参数
   int lidar_type = yaml_["preprocess"]["lidar_type"].as<int>();
   num_scans_ = yaml_["preprocess"]["scan_line"].as<int>();
-  point_filter_num_ = yaml_["point_filter_num"].as<int>();
+  point_filter_num_ = yaml_["preprocess"]["point_filter_num"].as<int>();
 
   if (lidar_type == 1) {
     lidar_type_ = LidarType::ROBOM1;

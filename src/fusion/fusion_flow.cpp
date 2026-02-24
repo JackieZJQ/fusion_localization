@@ -32,7 +32,7 @@ FusionFlow::FusionFlow(const rclcpp::Node::SharedPtr& node)
 
   InitRosInterfaces();
 
-  PublishMap();
+  PublishStaticPointcloudMap();
 }
 
 void FusionFlow::InitRosInterfaces() {
@@ -46,14 +46,14 @@ void FusionFlow::InitRosInterfaces() {
   cloud_subscriber_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>("/rslidar_points", 10, std::bind(&FusionFlow::CloudCallback, this, std::placeholders::_1), sensor_opts);
 
   //发布定位数据
-  current_scan_publisher_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("/current_scan_undistorted", 10);
-  odometry_publisher_ = node_->create_publisher<nav_msgs::msg::Odometry>("/odometry", 10);
-  localization_publisher_ = node_->create_publisher<std_msgs::msg::Float64MultiArray>("/gps", 10);
+  current_scan_publisher_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("/localization/current_scan_undistorted", 10);
+  fusion_localization_publisher_ = node_->create_publisher<std_msgs::msg::Float64MultiArray>("/localization/fusion", 10);
+  odometry_publisher_ = node_->create_publisher<nav_msgs::msg::Odometry>("/localization/odometry", 10);
 
   //大地图发布（使用 Reentrant 回调组，可并行处理）
   rclcpp::QoS map_qos(rclcpp::KeepLast(1));
   map_qos.transient_local().reliable();
-  map_publisher_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("/map", map_qos);
+  static_pointcloud_map_publisher_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("/localization/static_pointcloud_map", map_qos);
 
   //初始化tf广播器
   tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(node_);
@@ -80,22 +80,17 @@ void FusionFlow::GnssCallback(const sensor_msgs::msg::NavSatFix::SharedPtr gnss_
 
 void FusionFlow::CloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud_msg_ptr) {
   
-  {
-    //Timer timer("CloudCallback::Convert");
-    // 对点云数量做滤波
-    CLOUD::Ptr cloud_ptr(new CLOUD);
-    cloud_ptr->timestamp_ = cloud_msg_ptr->header.stamp.sec + cloud_msg_ptr->header.stamp.nanosec * 1e-9;
-    cloud_converter_ptr_->Process(cloud_msg_ptr, cloud_ptr->full_cloud_ptr_);
-    fusion_ptr_->ProcessPointCloud(cloud_ptr);
-  }
+  // 对点云数量做滤波
+  CLOUD::Ptr cloud_ptr(new CLOUD);
+  cloud_ptr->timestamp_ = cloud_msg_ptr->header.stamp.sec + cloud_msg_ptr->header.stamp.nanosec * 1e-9;
+  cloud_converter_ptr_->Process(cloud_msg_ptr, cloud_ptr->full_cloud_ptr_);
+  
+  fusion_ptr_->ProcessPointCloud(cloud_ptr);
 
   //todo
   //点云定位完成后,获取当前eskf状态
-  {
-    //Timer timer("CloudCallback::Publish");
-    PublishOdom();
-    PublishLidarTf();
-  }
+  PublishOdom();
+  PublishLidarTf();
   //PublishCurrentScan();
 }
 
@@ -111,15 +106,15 @@ void FusionFlow::PublishCurrentScan() {
   current_scan_publisher_->publish(cloud_msg);
 }
 
-void FusionFlow::PublishMap() {
-  CloudPtr map = fusion_ptr_->GetVisualMap();
+void FusionFlow::PublishStaticPointcloudMap() {
+  CloudPtr map = fusion_ptr_->GetStaticPointcloudMap();
 
   sensor_msgs::msg::PointCloud2 msg;
   pcl::toROSMsg(*map, msg);
   msg.header.frame_id = "map";
   msg.header.stamp = node_->now();
 
-  map_publisher_->publish(msg);
+  static_pointcloud_map_publisher_->publish(msg);
 }
 
 void FusionFlow::PublishOdom() {
@@ -171,6 +166,6 @@ void FusionFlow::PublishLidarLocalization() {
   msg.data[1] = state->p_.y();
   msg.data[2] = state->p_.z();
 
-  localization_publisher_->publish(msg);
+  fusion_localization_publisher_->publish(msg);
 }
 } // namespace localization

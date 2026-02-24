@@ -34,7 +34,7 @@ public:
   bool HasMapInitialized();
   
   CloudPtr GetRefCloud();     //todo 重命名
-  CloudPtr GetVisFullCloud();
+  CloudPtr GetStaticPointcloudMap();
 
   std::map<Vec2i, CloudPtr, less_vec<2>> GetLoadedTiles(); //用于pangolin可视化，todo删除
 
@@ -42,7 +42,7 @@ public:
 
 private:
   bool LoadAvailableTileIndices();               //加载地图格子索引
-  CloudPtr LoadTileFromDisk(const Vec2i& index); //从文件加载地图格子
+  CloudPtr LoadTileFromDisk(const Vec2i& index, bool voxel_filter = false, float leaf_size = 1.0f); //从文件加载地图格子
 
   Vec2i PoseToTile(const SE3& pose);
   std::set<Vec2i, less_vec<2>> PoseToSurroundTiles(const SE3& pose);

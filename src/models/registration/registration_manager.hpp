@@ -63,6 +63,6 @@ private:
   std::atomic_bool ref_cloud_updated_{false};
   std::atomic_bool is_running_{false};
   std::thread worker_;
-  YAML::Node yaml_; //ndt参数配置
+  YAML::Node yaml_;
 };
 } // namespace localization

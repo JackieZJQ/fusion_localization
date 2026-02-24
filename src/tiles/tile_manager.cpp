@@ -21,7 +21,7 @@
 namespace localization {
 TileManager::TileManager(const YAML::Node& yaml) {
 
-  tile_size_m_ = yaml["tile_size_meter"].as<double>();
+  tile_size_m_ = yaml["tiles"]["tile_size_meter"].as<double>();
   map_tiles_root_dir_  = yaml["map_data"].as<std::string>();
   
   //加载地图索引
@@ -70,14 +70,14 @@ CloudPtr TileManager::GetRefCloud() {
   return ref_cloud_;
 }
 
-CloudPtr TileManager::GetVisFullCloud() {
+CloudPtr TileManager::GetStaticPointcloudMap() {
   // 加载滤波后的全局点云地图，用于可视化，不用于定位
   // todo
-  // 1.全局点云图编号为888_888，修改地图编号逻辑
+  // 1.全局点云图编号为555_555，修改地图编号逻辑
   // 2.加载静态全局点云图为线程阻塞模式，修改为非线程阻塞模式
-  CloudPtr static_full_map = LoadTileFromDisk(Vec2i(888, 888));
+  CloudPtr static_pointcloud_map = LoadTileFromDisk(Vec2i(555, 555));
 
-  return static_full_map;
+  return static_pointcloud_map;
 }
 
 std::map<Vec2i, CloudPtr, less_vec<2>> TileManager::GetLoadedTiles() {
@@ -130,16 +130,23 @@ std::set<Vec2i, less_vec<2>> TileManager::PoseToSurroundTiles(const SE3& pose) {
   Vec2i key(gx, gy);
 
   //pose周围9宫格索引
-  std::set<Vec2i, less_vec<2>> surrounding_index {
-    key + Vec2i(-1,  1),  key + Vec2i(0,  1), key + Vec2i(1,  1),
+  // std::set<Vec2i, less_vec<2>> surrounding_index {
+  //   key + Vec2i(-1,  1),  key + Vec2i(0,  1), key + Vec2i(1,  1),
+  //   key + Vec2i(-1,  0),  key + Vec2i(0,  0), key + Vec2i(1,  0),
+  //   key + Vec2i(-1, -1),  key + Vec2i(0, -1), key + Vec2i(1, -1),
+  // };
+
+  //pose周围十字宫格索引
+    std::set<Vec2i, less_vec<2>> surrounding_index {
+                          key + Vec2i(0,  1), 
     key + Vec2i(-1,  0),  key + Vec2i(0,  0), key + Vec2i(1,  0),
-    key + Vec2i(-1, -1),  key + Vec2i(0, -1), key + Vec2i(1, -1),
+                          key + Vec2i(0, -1), 
   };
 
   return surrounding_index;
 }
 
-CloudPtr TileManager::LoadTileFromDisk(const Vec2i& index) {
+CloudPtr TileManager::LoadTileFromDisk(const Vec2i& index, bool voxel_filter, float leaf_size) {
   // 加载点云
   std::string file = map_tiles_root_dir_ + "/" + std::to_string(index[0]) + "_" + std::to_string(index[1]) + ".pcd";
   CloudPtr cloud(new PointCloudType);
@@ -150,14 +157,18 @@ CloudPtr TileManager::LoadTileFromDisk(const Vec2i& index) {
   }
 
   // 拼接前下采样
-  CloudPtr filtered_cloud(new PointCloudType);
+  if (voxel_filter == true) {
+    CloudPtr filtered_cloud(new PointCloudType);
 
-  pcl::VoxelGrid<PointType> filter;
-  filter.setInputCloud(cloud);
-  filter.setLeafSize(0.5f, 0.5f, 0.5f);
-  filter.filter(*filtered_cloud);
+    pcl::VoxelGrid<PointType> filter;
+    filter.setInputCloud(cloud);
+    filter.setLeafSize(leaf_size, leaf_size, leaf_size);
+    filter.filter(*filtered_cloud);
 
-  return filtered_cloud;
+    return filtered_cloud;
+  }
+
+  return cloud;
 }
 
 void TileManager::BackgroundTileManagementLoop() {
@@ -198,7 +209,7 @@ void TileManager::BackgroundTileManagementLoop() {
 
     //4.卸载loaded_tiles不需要的区域，这个稍微加大一点，不需要频繁卸载
     for (auto iter = loaded_tiles.begin(); iter != loaded_tiles.end();) {
-      if ((iter->first - local_tile_indice).cast<float>().norm() > 3.0) {
+      if ((iter->first - local_tile_indice).cast<float>().norm() > 1.5) {
         //卸载本区块
         iter = loaded_tiles.erase(iter);
         cnt_unloaded_tiles++;
