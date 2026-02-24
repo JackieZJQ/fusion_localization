@@ -194,6 +194,15 @@ void Fusion::DoAlign() {
   }
 }
 
+void Fusion::DoImuPredict(IMU::Ptr imu) {
+  //检查ESKF时间戳是否落后于IMU时间戳，如果是，则进行预测
+  if (eskf_imu_predict_.GetNominalState().timestamp_ < imu->timestamp_) {
+
+    LOG(INFO) << "DT: " << imu->timestamp_ - eskf_imu_predict_.GetNominalState().timestamp_ << "s, doing IMU predict.";
+    eskf_imu_predict_.Predict(*imu);
+  }
+}  
+
 bool Fusion::SearchRtk() {
   if (init_failed_) {
     if ((last_gnss_->utm_pose_.translation() - last_searched_pose_.translation()).norm() < 20.0) {
@@ -336,11 +345,16 @@ bool Fusion::DoLidarLocalization() {
 }
 
 void Fusion::ProcessImu(IMU::Ptr imu) { 
-  sync_ptr_->ProcessIMU(imu); 
+  sync_ptr_->ProcessIMU(imu);
+  
+  DoImuPredict(imu);
 }
 
 void Fusion::ProcessPointCloud(CLOUD::Ptr cloud) {
   sync_ptr_->ProcessCloud(cloud);
+
+  //点云数据处理完成后，将主ESKF复制为一个新的ESKF，用于IMU预测
+  eskf_imu_predict_ = eskf_;
 }
 
 void Fusion::ProcessRtk(GNSS::Ptr gnss) {
@@ -351,6 +365,15 @@ void Fusion::ProcessRtk(GNSS::Ptr gnss) {
 NavStated::Ptr Fusion::GetCurrentState() const {
   if (state_ == state::kWORKING) {
     return std::make_shared<NavStated>(eskf_.GetNominalState());
+  } else {
+    //todo
+    //未初始化下，应该执行的操作
+  }
+}
+
+NavStated::Ptr Fusion::GetImuPredictedState() const {
+  if (state_ == state::kWORKING) {
+    return std::make_shared<NavStated>(eskf_imu_predict_.GetNominalState());
   } else {
     //todo
     //未初始化下，应该执行的操作

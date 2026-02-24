@@ -64,6 +64,10 @@ void FusionFlow::ImuCallback(const sensor_msgs::msg::Imu::SharedPtr imu_msg_ptr)
   //转换为IMU格式
   IMU::Ptr imu = std::make_shared<localization::IMU>(imu_msg_ptr);
   fusion_ptr_->ProcessImu(imu);
+
+  //发布IMU预测的定位结果
+  PublishOdom();
+  PublishRosTf();
 }
 
 void FusionFlow::GnssCallback(const sensor_msgs::msg::NavSatFix::SharedPtr gnss_msg_ptr) {
@@ -89,9 +93,9 @@ void FusionFlow::CloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cl
 
   //todo
   //点云定位完成后,获取当前eskf状态
-  PublishOdom();
-  PublishLidarTf();
-  //PublishCurrentScan();
+  // PublishOdom();
+  // PublishTf();
+  // PublishCurrentScan();
 }
 
 void FusionFlow::PublishCurrentScan() {
@@ -118,7 +122,7 @@ void FusionFlow::PublishStaticPointcloudMap() {
 }
 
 void FusionFlow::PublishOdom() {
-  NavStated::Ptr state = fusion_ptr_->GetCurrentState();
+  NavStated::Ptr state = fusion_ptr_->GetImuPredictedState();
 
   nav_msgs::msg::Odometry msg;
   msg.header.frame_id = "map";
@@ -137,9 +141,9 @@ void FusionFlow::PublishOdom() {
   odometry_publisher_->publish(msg);
 }
 
-void FusionFlow::PublishLidarTf() {
-  NavStated::Ptr state = fusion_ptr_->GetCurrentState();
-
+void FusionFlow::PublishRosTf() {
+  //NavStated::Ptr state = fusion_ptr_->GetCurrentState();
+  NavStated::Ptr state = fusion_ptr_->GetImuPredictedState();
   geometry_msgs::msg::TransformStamped transform_stamped;
   transform_stamped.header.stamp = rclcpp::Time(static_cast<int64_t>(state->timestamp_ * 1e9)); 
   transform_stamped.header.frame_id = "map";
@@ -157,7 +161,7 @@ void FusionFlow::PublishLidarTf() {
   tf_broadcaster_->sendTransform(transform_stamped);
 }
 
-void FusionFlow::PublishLidarLocalization() {
+void FusionFlow::PublishLocalization() {
   NavStated::Ptr state = fusion_ptr_->GetCurrentState();
 
   std_msgs::msg::Float64MultiArray msg;

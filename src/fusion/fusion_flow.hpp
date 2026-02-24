@@ -50,8 +50,8 @@ private:
   void PublishCurrentScan();
   void PublishStaticPointcloudMap();
   void PublishOdom();
-  void PublishLidarTf();
-  void PublishLidarLocalization();
+  void PublishRosTf();
+  void PublishLocalization();
 
   //订阅传感器数据
   rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_subscriber_;
@@ -73,7 +73,8 @@ private:
 
   // 回调组
   rclcpp::CallbackGroup::SharedPtr sensor_callback_group_; // IMU/GNSS/Cloud 串行
-  rclcpp::CallbackGroup::SharedPtr map_callback_group_;    // 地图发布可并行
+  rclcpp::CallbackGroup::SharedPtr imu_callback_group_;
+  rclcpp::CallbackGroup::SharedPtr map_callback_group_; // 地图发布可并行
 
   // IMU/雷达并行
 };

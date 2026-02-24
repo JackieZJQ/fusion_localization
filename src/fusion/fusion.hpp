@@ -52,6 +52,7 @@ public:
 
   //获取当前状态
   NavStated::Ptr GetCurrentState() const;
+  NavStated::Ptr GetImuPredictedState() const; //获取使用IMU预测的状态
   FullCloudPtr GetCurrentScan() const;
   CloudPtr GetStaticPointcloudMap() const;
 
@@ -87,6 +88,9 @@ private:
   //利用IMU预测状态信息,这段时间的预测数据会放入imu_states_里
   void DoPredict();
 
+  //使用IMU数据，在ESKF中，对状态进行预测
+  void DoImuPredict(IMU::Ptr imu);
+
   //对measures_中的点云去畸变
   void DoUndistort();
 
@@ -104,7 +108,7 @@ private:
 
   //滤波器
   ESKFD eskf_;
-  ESKFD eskf_realtime_;
+  ESKFD eskf_imu_predict_;  //使用IMU预测定位结果的ESKF
   std::vector<NavStated> imu_states_;  //ESKF预测期间的状态
 
   FullCloudPtr undistorted_scan_ { new FullPointCloudType() }; //矫过畸变之后的点云
