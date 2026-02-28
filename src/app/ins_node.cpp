@@ -122,6 +122,10 @@ void SyncCallback(const beidou_ins_driver::msg::Inspva::ConstSharedPtr& inspva,
 };
 
 int main(int argc, char **argv) {
+  google::InitGoogleLogging(argv[0]);
+  FLAGS_stderrthreshold = google::INFO;
+  FLAGS_colorlogtostderr = true;
+
   rclcpp::init(argc, argv);
 
   // 加载yaml配置文件
