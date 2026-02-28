@@ -49,9 +49,10 @@ private:
   //发布rviz消息
   void PublishCurrentScan();
   void PublishStaticPointcloudMap();
-  void PublishOdom();
-  void PublishRosTf();
   void PublishLocalization();
+  void PublishImuPrediction();
+  void PublishRosTf();
+  void PublishOdom();
 
   //订阅传感器数据
   rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_subscriber_;
@@ -72,11 +73,9 @@ private:
   rclcpp::Node::SharedPtr node_;
 
   // 回调组
-  rclcpp::CallbackGroup::SharedPtr sensor_callback_group_; // IMU/GNSS/Cloud 串行
-  rclcpp::CallbackGroup::SharedPtr imu_callback_group_;
-  rclcpp::CallbackGroup::SharedPtr map_callback_group_; // 地图发布可并行
+  rclcpp::CallbackGroup::SharedPtr sensor_callback_group_; // IMU/GNSS/Cloud 回调组，并行
+  rclcpp::CallbackGroup::SharedPtr map_callback_group_; // 地图发布回调组，单线程，避免与传感器回调冲突
 
-  // IMU/雷达并行
 };
 } // namesapce localization
 

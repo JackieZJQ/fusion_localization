@@ -121,6 +121,11 @@ void FusionFlow::PublishStaticPointcloudMap() {
   static_pointcloud_map_publisher_->publish(msg);
 }
 
+void FusionFlow::PublishImuPrediction() {
+  //todo
+  //完成imu预测发布
+}
+
 void FusionFlow::PublishOdom() {
   NavStated::Ptr state = fusion_ptr_->GetImuPredictedState();
 

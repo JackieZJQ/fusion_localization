@@ -64,27 +64,28 @@ bool Fusion::InitImu() {
 }
 
 void Fusion::ProcessMeasurements(const MessageSync::MeasureGroup& meas) {
-  //Timer timer("Fusion::ProcessMeasurements");
+
+  // 1.更新已完成同步的IMU和雷达数据
   synced_measures_ = meas;
+  if (imu_need_init_) { InitImuOnline(); return; }
 
-  //todo
-  //imu_need_init_->has_imu_inited_?
-  if (imu_need_init_) {
-    InitImuOnline();
-    return;
-  }
-
-  //以下三步与LIO一致，只是align完成地图匹配工作
+  // 2.确认当前状态是否为kWORKING状态
   if (state_ == state::kWORKING) {
-    DoPredict();
+    // 2.1 使用IMU数据预测雷达[lidar_begin, lidar_end]时间段内的状态
+    EskfPredict();
+    // 2.2 对雷达数据进行去畸变
     DoUndistort();
   } else {
-    // why here ?
+    //todo
+    //这一步的意义是什么
     undistorted_scan_ = synced_measures_.lidar_;
     undistorted_scan_->header.stamp = static_cast<uint64_t>(synced_measures_.lidar_begin_time_ * 1e6);
   }
 
+  // 3.执行一次配准，更新主滤波器eskf_的observation
   DoAlign();
+
+
 }
 
 void Fusion::InitImuOnline() {
@@ -135,17 +136,17 @@ void Fusion::InitImuOffline() {
             << "=================================================";
 }
 
-void Fusion::DoPredict() {
+void Fusion::EskfPredict() {
+
+  // 主滤波器用该雷达帧对应的 IMU 段数据预测到雷达帧结束时刻的状态，供雷达去畸变和配准使用
+  // 1.清理imu_states_，重新预测并记录状态
   imu_states_.clear();
   imu_states_.emplace_back(eskf_.GetNominalState());
 
-  //对IMU状态进行预测
+  // 2.使用imu数据对主eskf递推，记录每个imu时刻的状态
   for (auto& imu : synced_measures_.imu_) {
     eskf_.Predict(*imu);
     imu_states_.emplace_back(eskf_.GetNominalState());
-
-    //todo
-    //需要每一次predict()一次，发布一次状态吗？
   }
 }
 
@@ -193,15 +194,6 @@ void Fusion::DoAlign() {
     DoLidarLocalization();
   }
 }
-
-void Fusion::DoImuPredict(IMU::Ptr imu) {
-  //检查ESKF时间戳是否落后于IMU时间戳，如果是，则进行预测
-  if (eskf_imu_predict_.GetNominalState().timestamp_ < imu->timestamp_) {
-
-    LOG(INFO) << "DT: " << imu->timestamp_ - eskf_imu_predict_.GetNominalState().timestamp_ << "s, doing IMU predict.";
-    eskf_imu_predict_.Predict(*imu);
-  }
-}  
 
 bool Fusion::SearchRtk() {
   if (init_failed_) {
@@ -345,16 +337,31 @@ bool Fusion::DoLidarLocalization() {
 }
 
 void Fusion::ProcessImu(IMU::Ptr imu) { 
+  // 1.将IMU数据传递给消息同步器，等待与雷达数据同步后触发回调函数ProcessMeasurements
+  //   此处IMU数据主要用于雷达去畸变和配准时状态预测
   sync_ptr_->ProcessIMU(imu);
+
+  // 2.记录IMU缓存，用于雷达更新后，切换ESKF后数据的重放
+  //   只保留最近5秒的IMU数据，避免内存占用过大
+  constexpr double duration = 5.0;
+  imu_buffer_.emplace_back(imu);
+  while (!imu_buffer_.empty() && (imu->timestamp_ - imu_buffer_.front()->timestamp_ > duration)) {
+    imu_buffer_.pop_front();
+  }
   
-  DoImuPredict(imu);
+
+  // 2.使用IMU数据，在ESKF中，对状态进行预测
+  eskf_imu_predict_.Predict(*imu);
+
+  //todo
+  //发布imu预测结果
 }
 
 void Fusion::ProcessPointCloud(CLOUD::Ptr cloud) {
   sync_ptr_->ProcessCloud(cloud);
 
-  //点云数据处理完成后，将主ESKF复制为一个新的ESKF，用于IMU预测
-  eskf_imu_predict_ = eskf_;
+  // todo
+  // 在此处进行主eskf和eskf_imu_predict_的状态对齐吗？或者说在ProcessMeasurements里进行对齐
 }
 
 void Fusion::ProcessRtk(GNSS::Ptr gnss) {

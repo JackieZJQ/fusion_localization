@@ -16,7 +16,7 @@ namespace localization {
  * @param utm_coor
  * @return
  */
-bool LatLon2UTM(const Vec2d &latlon, GNSS::UTMCoordinate &utm_coor);
+bool LatLon2UTM(const Vec2d& latlon, GNSS::UTMCoordinate& utm_coor);
 
 /**
  * UTM转经纬度
@@ -24,7 +24,7 @@ bool LatLon2UTM(const Vec2d &latlon, GNSS::UTMCoordinate &utm_coor);
  * @param latlon
  * @return
  */
-bool UTM2LatLon(const GNSS::UTMCoordinate &utm_coor, Vec2d &latlon);
+bool UTM2LatLon(const GNSS::UTMCoordinate& utm_coor, Vec2d& latlon);
 
 /**
  * 计算本书的GNSS读数对应的UTM pose和六自由度Pose

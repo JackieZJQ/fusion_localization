@@ -1,3 +1,16 @@
+/**
+ * ************************************************************************
+ * 
+ * @file fusion_node.cpp
+ * @author Zhang Jiaqi (zhangiaii97@gmail.com)
+ * @brief 定位节点函数
+ * 
+ * ************************************************************************
+ * @copyright Copyright (c) 2026
+ * For study and research only, no reprinting
+ * ************************************************************************
+ */
+
 #include <rclcpp/rclcpp.hpp>
 #include <glog/logging.h>
 

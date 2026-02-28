@@ -20,9 +20,14 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(sensor_msgs REQUIRED)
-find_package(nav_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(localization_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(beidou_ins_driver REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(PCL REQUIRED)
 find_package(pcl_conversions REQUIRED)
@@ -31,9 +36,6 @@ find_package(OpenCV REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(TBB REQUIRED)
 find_package(OpenMP REQUIRED)
-find_package(tf2 REQUIRED)
-find_package(tf2_ros REQUIRED)
-find_package(tf2_geometry_msgs REQUIRED)
 
 include_directories(${PROJECT_SOURCE_DIR}
                     ${PROJECT_SOURCE_DIR}/src
@@ -47,8 +49,10 @@ include_directories(${PROJECT_SOURCE_DIR}
 file(GLOB_RECURSE ALL_SRCS "*.cpp")
 file(GLOB_RECURSE UTM_CONVERT_SRCS "*.cc")
 file(GLOB_RECURSE NODE_SRCS "src/app/fusion_node.cpp")
+file(GLOB_RECURSE INS_NODE_SRCS "src/app/ins_node.cpp")
 
 list(REMOVE_ITEM ALL_SRCS ${NODE_SRCS})
+list(REMOVE_ITEM ALL_SRCS ${INS_NODE_SRCS})
 list(FILTER ALL_SRCS EXCLUDE REGEX ".*/third_party/fast_gicp/.*")
 
 # 关闭fast_gicp的 apps/test/python，避免多余目标
@@ -60,6 +64,7 @@ set(BUILD_VGICP_CUDA OFF CACHE BOOL "" FORCE)
 
 add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/fast_gicp)
 
+##fusion_localization_node
 add_executable(fusion_localization_node "src/app/fusion_node.cpp" ${ALL_SRCS} ${UTM_CONVERT_SRCS})
 ament_target_dependencies(fusion_localization_node 
   rclcpp 
@@ -81,8 +86,22 @@ target_link_libraries(fusion_localization_node
   yaml-cpp
   fast_gicp)
 
+##ins_localization_node
+add_executable(ins_localization_node "src/app/ins_node.cpp" ${ALL_SRCS} ${UTM_CONVERT_SRCS})
+ament_target_dependencies(ins_localization_node 
+  rclcpp 
+  sensor_msgs 
+  tf2
+  localization_msgs
+  beidou_ins_driver)
+
+target_link_libraries(ins_localization_node 
+  ${GLOG_LIBRARIES})
+
+## 安装目标文件
 install(TARGETS
   fusion_localization_node
+  ins_localization_node
   DESTINATION lib/${PROJECT_NAME}
 )
 

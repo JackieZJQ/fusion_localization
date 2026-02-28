@@ -86,10 +86,7 @@ private:
   bool DoLidarLocalization();   
 
   //利用IMU预测状态信息,这段时间的预测数据会放入imu_states_里
-  void DoPredict();
-
-  //使用IMU数据，在ESKF中，对状态进行预测
-  void DoImuPredict(IMU::Ptr imu);
+  void EskfPredict();
 
   //对measures_中的点云去畸变
   void DoUndistort();
@@ -97,6 +94,9 @@ private:
   //执行一次配准和观测
   void DoAlign();
 
+  //重放t_start
+
+private:
   //标志位
   state state_ = state::kWAITINGFORRTK;
 
@@ -131,6 +131,9 @@ private:
   TileManager::Ptr tile_manager_ptr_ = nullptr;
 
   YAML::Node yaml_; //参数配置
+
+  std::deque<IMU::Ptr> imu_buffer_;
+  double last_lidar_end_time_ = -1.0;
 };
 }  // namespace localization
 
