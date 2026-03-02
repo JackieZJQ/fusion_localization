@@ -84,8 +84,6 @@ void Fusion::ProcessMeasurements(const MessageSync::MeasureGroup& meas) {
 
   // 3.执行一次配准，更新主滤波器eskf_的observation
   DoAlign();
-
-
 }
 
 void Fusion::InitImuOnline() {

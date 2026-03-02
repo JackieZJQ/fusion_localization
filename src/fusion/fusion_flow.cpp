@@ -28,7 +28,6 @@ FusionFlow::FusionFlow(const rclcpp::Node::SharedPtr& node)
 
   //NEW创建回调组
   sensor_callback_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-  map_callback_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::Reentrant);
 
   InitRosInterfaces();
 
@@ -41,7 +40,7 @@ void FusionFlow::InitRosInterfaces() {
   sensor_opts.callback_group = sensor_callback_group_;
 
   //订阅传感器消息
-  imu_subscriber_ = node_->create_subscription<sensor_msgs::msg::Imu>("/imu", 10, std::bind(&FusionFlow::ImuCallback, this, std::placeholders::_1), sensor_opts);
+  imu_subscriber_ = node_->create_subscription<sensor_msgs::msg::Imu>("/imu", 50, std::bind(&FusionFlow::ImuCallback, this, std::placeholders::_1), sensor_opts);
   gnss_subscriber_ = node_->create_subscription<sensor_msgs::msg::NavSatFix>("/navsatfix", 10, std::bind(&FusionFlow::GnssCallback, this, std::placeholders::_1), sensor_opts);
   cloud_subscriber_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>("/rslidar_points", 10, std::bind(&FusionFlow::CloudCallback, this, std::placeholders::_1), sensor_opts);
 
@@ -127,7 +126,7 @@ void FusionFlow::PublishImuPrediction() {
 }
 
 void FusionFlow::PublishOdom() {
-  NavStated::Ptr state = fusion_ptr_->GetImuPredictedState();
+  NavStated::Ptr state = fusion_ptr_->GetCurrentState();
 
   nav_msgs::msg::Odometry msg;
   msg.header.frame_id = "map";
@@ -147,8 +146,8 @@ void FusionFlow::PublishOdom() {
 }
 
 void FusionFlow::PublishRosTf() {
-  //NavStated::Ptr state = fusion_ptr_->GetCurrentState();
-  NavStated::Ptr state = fusion_ptr_->GetImuPredictedState();
+  NavStated::Ptr state = fusion_ptr_->GetCurrentState();
+  //NavStated::Ptr state = fusion_ptr_->GetImuPredictedState();
   geometry_msgs::msg::TransformStamped transform_stamped;
   transform_stamped.header.stamp = rclcpp::Time(static_cast<int64_t>(state->timestamp_ * 1e9)); 
   transform_stamped.header.frame_id = "map";

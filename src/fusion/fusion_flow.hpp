@@ -74,8 +74,6 @@ private:
 
   // 回调组
   rclcpp::CallbackGroup::SharedPtr sensor_callback_group_; // IMU/GNSS/Cloud 回调组，并行
-  rclcpp::CallbackGroup::SharedPtr map_callback_group_; // 地图发布回调组，单线程，避免与传感器回调冲突
-
 };
 } // namesapce localization
 
