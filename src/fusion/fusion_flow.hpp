@@ -47,25 +47,23 @@ private:
   void CloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud_msg_ptr);
 
   //发布rviz消息
-  void PublishCurrentScan();
   void PublishStaticPointcloudMap();
-  void PublishLocalization();
-  void PublishImuPrediction();
+  void PublishUndistortScan();
   void PublishRosTf();
   void PublishOdom();
 
-  //订阅传感器数据
+  // 订阅传感器数据
   rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_subscriber_;
   rclcpp::Subscription<sensor_msgs::msg::NavSatFix>::SharedPtr gnss_subscriber_;
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_subscriber_;
 
-  //发布定位数据
-  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr current_scan_publisher_;
+  // 发布定位数据
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr undistort_scan_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr static_pointcloud_map_publisher_;
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odometry_publisher_;
   rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr fusion_localization_publisher_;
 
-  //tf广播器
+  // tf广播器
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
   CloudConvert::Ptr cloud_converter_ptr_;
@@ -73,7 +71,7 @@ private:
   rclcpp::Node::SharedPtr node_;
 
   // 回调组
-  rclcpp::CallbackGroup::SharedPtr sensor_callback_group_; // IMU/GNSS/Cloud 回调组，并行
+  rclcpp::CallbackGroup::SharedPtr sensor_callback_group_; // IMU/GNSS/Cloud 回调组，串行
 };
 } // namesapce localization
 

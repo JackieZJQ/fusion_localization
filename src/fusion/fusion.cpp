@@ -98,6 +98,7 @@ void Fusion::InitImuOnline() {
     // 噪声由初始化器估计
     // options.gyro_var_ = sqrt(imu_init_.GetCovGyro()[0]);
     // options.acce_var_ = sqrt(imu_init_.GetCovAcce()[0]);
+
     options.update_bias_acce_ = false;
     options.update_bias_gyro_ = false;
     eskf_.SetInitialConditions(options, imu_init_.GetInitBg(), imu_init_.GetInitBa(), imu_init_.GetGravity());
@@ -182,14 +183,20 @@ void Fusion::DoAlign() {
   current_scan_ = ConvertToCloud<FullPointType>(undistorted_scan_);
   current_scan_ = VoxelCloud(current_scan_, 0.5);
 
-  if (state_ == state::kWAITINGFORRTK) {
-    if (last_gnss_ != nullptr) { //若存在最近的RTK信号，则尝试初始化
-      if (SearchRtk()) {
-        state_ = state::kWORKING;
-      }
-    }
-  } else {
-    DoLidarLocalization();
+  // 存在RTK信号，尝试初始化信号
+  if (state_ == state::kWAITINGFORRTK && last_gnss_ != nullptr) {
+    bool is_initialized = SearchRtk();
+    if (is_initialized) state_ = state::kINITIALIZED;
+
+    return;
+  };
+  
+  //todo
+  //调整state逻辑流
+  bool is_localized = DoLidarLocalization();
+  if (state_ == state::kINITIALIZED && is_localized) {
+    state_ = state::kWORKING;
+    LOG(INFO) << "点云定位成功，进入WORKING状态";
   }
 }
 
@@ -258,7 +265,6 @@ bool Fusion::SearchRtk() {
     cov.block<12, 12>(6, 6) = Eigen::Matrix<double, 12, 12>::Identity() * 1e-6;
     eskf_.SetCov(cov);
 
-    state_ = state::kWORKING;
     return true;
   }
 
@@ -302,7 +308,6 @@ bool Fusion::DoLidarLocalization() {
     std::map<Vec2i, CloudPtr, less_vec<2>> map_data = tile_manager_ptr_->GetLoadedTiles();
 
     registration_manager_ptr_->UpdateRefCloud(ref_cloud);
-    //更新UI
   }
 
   Eigen::Matrix4f pred_pose = pred.matrix().cast<float>();
@@ -315,7 +320,7 @@ bool Fusion::DoLidarLocalization() {
     bool converged = registration_manager_ptr_->Align(current_scan_, pred_pose, result_pose);
 
     elapsed_ms = t.Stop();
-    LOG(INFO) << "elapsed_ms: " << elapsed_ms;
+    //LOG(INFO) << "elapsed_ms: " << elapsed_ms;
   }
 
   if (elapsed_ms > th) {
@@ -330,7 +335,10 @@ bool Fusion::DoLidarLocalization() {
 
   SE3 pose_se3 = Mat4ToSE3(result_pose);
   eskf_.ObserveSE3(pose_se3, 1e-1, 1e-2);
-  
+
+  //更新eskf定位预测器
+  inertial_extrapolator_.CorrectState(eskf_, synced_measures_.lidar_end_time_);
+
   return true;
 }
 
@@ -339,27 +347,14 @@ void Fusion::ProcessImu(IMU::Ptr imu) {
   //   此处IMU数据主要用于雷达去畸变和配准时状态预测
   sync_ptr_->ProcessIMU(imu);
 
-  // 2.记录IMU缓存，用于雷达更新后，切换ESKF后数据的重放
-  //   只保留最近5秒的IMU数据，避免内存占用过大
-  constexpr double duration = 5.0;
-  imu_buffer_.emplace_back(imu);
-  while (!imu_buffer_.empty() && (imu->timestamp_ - imu_buffer_.front()->timestamp_ > duration)) {
-    imu_buffer_.pop_front();
-  }
+  // 2.将数据传给IMU递推预测定位器，进行状态预测
+  if (state_ == state::kWAITINGFORRTK || state_ == state::kINITIALIZED) return;
   
-
-  // 2.使用IMU数据，在ESKF中，对状态进行预测
-  eskf_imu_predict_.Predict(*imu);
-
-  //todo
-  //发布imu预测结果
+  // inertial_extrapolator_.PushImu(imu);
 }
 
 void Fusion::ProcessPointCloud(CLOUD::Ptr cloud) {
   sync_ptr_->ProcessCloud(cloud);
-
-  // todo
-  // 在此处进行主eskf和eskf_imu_predict_的状态对齐吗？或者说在ProcessMeasurements里进行对齐
 }
 
 void Fusion::ProcessRtk(GNSS::Ptr gnss) {
@@ -367,7 +362,11 @@ void Fusion::ProcessRtk(GNSS::Ptr gnss) {
   last_gnss_ = gnss;
 }
 
-NavStated::Ptr Fusion::GetCurrentState() const {
+bool Fusion::IsImuReplaying() {
+  return inertial_extrapolator_.IsReplaying();
+}
+
+NavStated::Ptr Fusion::GetRegistrationState() const {
   if (state_ == state::kWORKING) {
     return std::make_shared<NavStated>(eskf_.GetNominalState());
   } else {
@@ -378,14 +377,14 @@ NavStated::Ptr Fusion::GetCurrentState() const {
 
 NavStated::Ptr Fusion::GetImuPredictedState() const {
   if (state_ == state::kWORKING) {
-    return std::make_shared<NavStated>(eskf_imu_predict_.GetNominalState());
+    return std::make_shared<NavStated>(inertial_extrapolator_.GetState());
   } else {
     //todo
     //未初始化下，应该执行的操作
   }
 }
 
-FullCloudPtr Fusion::GetCurrentScan() const {
+FullCloudPtr Fusion::GetUndistorScan() const {
   return undistorted_scan_;
 }
 

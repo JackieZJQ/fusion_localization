@@ -23,6 +23,8 @@
 #include "models/registration/registration_manager.hpp"
 #include "models/synchronization/measure_sync.hpp"
 
+#include "fusion/inertial_extrapolator.hpp"
+
 #include "sensor_data/imu_data.hpp"
 #include "sensor_data/gnss_data.hpp"
 #include "sensor_data/nav_state.hpp"
@@ -51,14 +53,18 @@ public:
   void ProcessPointCloud(CLOUD::Ptr cloud);
 
   //获取当前状态
-  NavStated::Ptr GetCurrentState() const;
-  NavStated::Ptr GetImuPredictedState() const; //获取使用IMU预测的状态
-  FullCloudPtr GetCurrentScan() const;
+  NavStated::Ptr GetRegistrationState() const;
+  
+  NavStated::Ptr GetImuPredictedState() const; //获取使用 IMU 预测的状态
+  
+  FullCloudPtr GetUndistorScan() const;
+  
   CloudPtr GetStaticPointcloudMap() const;
 
   //RTK状态
   enum class state {
     kWAITINGFORRTK,  //等待初始的RTK
+    kINITIALIZED,    //已初始化成功，定位暂未正常工作
     kWORKING,        //正常工作
   };
 
@@ -82,19 +88,19 @@ private:
 
   void InitImuOffline();  //离线估计IMU初始零偏，使用yaml中的配置
 
-  //激光定位
-  bool DoLidarLocalization();   
-
   //利用IMU预测状态信息,这段时间的预测数据会放入imu_states_里
   void EskfPredict();
-
-  //对measures_中的点云去畸变
-  void DoUndistort();
 
   //执行一次配准和观测
   void DoAlign();
 
-  //重放t_start
+  //对measures_中的点云去畸变
+  void DoUndistort();
+
+  //激光定位
+  bool DoLidarLocalization();   
+
+  bool IsImuReplaying();
 
 private:
   //标志位
@@ -108,10 +114,13 @@ private:
 
   //滤波器
   ESKFD eskf_;
-  ESKFD eskf_imu_predict_;  //使用IMU预测定位结果的ESKF
   std::vector<NavStated> imu_states_;  //ESKF预测期间的状态
 
+  //imu递推预测定位
+  InertialExtrapolator inertial_extrapolator_ { InertialExtrapolator::Options() };
+
   FullCloudPtr undistorted_scan_ { new FullPointCloudType() }; //矫过畸变之后的点云
+  
   CloudPtr current_scan_ = nullptr;
 
   SE3 TIL_;
@@ -132,8 +141,6 @@ private:
 
   YAML::Node yaml_; //参数配置
 
-  std::deque<IMU::Ptr> imu_buffer_;
-  double last_lidar_end_time_ = -1.0;
 };
 }  // namespace localization
 

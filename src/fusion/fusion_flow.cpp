@@ -20,7 +20,7 @@ FusionFlow::FusionFlow(const rclcpp::Node::SharedPtr& node)
   
   //todo
   //yaml文件的地址写入cmakelists文件
-  const std::string config_path = "/home/jackie/robobus_localization/fusion_localization_ws/src/fusion_localization/config/localization_robosense.yaml";
+  const std::string config_path = "/home/jackie/2026/localization/src/fusion_localization/config/localization_robosense.yaml";
   auto yaml = YAML::LoadFile(config_path);
 
   fusion_ptr_ = std::make_shared<Fusion>(yaml);
@@ -45,7 +45,7 @@ void FusionFlow::InitRosInterfaces() {
   cloud_subscriber_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>("/rslidar_points", 10, std::bind(&FusionFlow::CloudCallback, this, std::placeholders::_1), sensor_opts);
 
   //发布定位数据
-  current_scan_publisher_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("/localization/current_scan_undistorted", 10);
+  undistort_scan_publisher_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("/rslidar_points_undistorted", 10);
   fusion_localization_publisher_ = node_->create_publisher<std_msgs::msg::Float64MultiArray>("/localization/fusion", 10);
   odometry_publisher_ = node_->create_publisher<nav_msgs::msg::Odometry>("/localization/odometry", 10);
 
@@ -63,10 +63,6 @@ void FusionFlow::ImuCallback(const sensor_msgs::msg::Imu::SharedPtr imu_msg_ptr)
   //转换为IMU格式
   IMU::Ptr imu = std::make_shared<localization::IMU>(imu_msg_ptr);
   fusion_ptr_->ProcessImu(imu);
-
-  //发布IMU预测的定位结果
-  PublishOdom();
-  PublishRosTf();
 }
 
 void FusionFlow::GnssCallback(const sensor_msgs::msg::NavSatFix::SharedPtr gnss_msg_ptr) {
@@ -92,13 +88,12 @@ void FusionFlow::CloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cl
 
   //todo
   //点云定位完成后,获取当前eskf状态
-  // PublishOdom();
-  // PublishTf();
-  // PublishCurrentScan();
+  PublishOdom();
+  PublishRosTf();
 }
 
-void FusionFlow::PublishCurrentScan() {
-  FullCloudPtr current_scan_undistorted = fusion_ptr_->GetCurrentScan();
+void FusionFlow::PublishUndistortScan() {
+  FullCloudPtr current_scan_undistorted = fusion_ptr_->GetUndistorScan();
 
   sensor_msgs::msg::PointCloud2 cloud_msg;
   pcl::toROSMsg(*current_scan_undistorted, cloud_msg);
@@ -106,7 +101,7 @@ void FusionFlow::PublishCurrentScan() {
   cloud_msg.header.stamp.sec = current_scan_undistorted->header.stamp / 1000000;
   cloud_msg.header.stamp.nanosec = (current_scan_undistorted->header.stamp % 1000000) * 1000;
 
-  current_scan_publisher_->publish(cloud_msg);
+  undistort_scan_publisher_->publish(cloud_msg);
 }
 
 void FusionFlow::PublishStaticPointcloudMap() {
@@ -120,13 +115,8 @@ void FusionFlow::PublishStaticPointcloudMap() {
   static_pointcloud_map_publisher_->publish(msg);
 }
 
-void FusionFlow::PublishImuPrediction() {
-  //todo
-  //完成imu预测发布
-}
-
 void FusionFlow::PublishOdom() {
-  NavStated::Ptr state = fusion_ptr_->GetCurrentState();
+  NavStated::Ptr state = fusion_ptr_->GetRegistrationState();
 
   nav_msgs::msg::Odometry msg;
   msg.header.frame_id = "map";
@@ -146,8 +136,7 @@ void FusionFlow::PublishOdom() {
 }
 
 void FusionFlow::PublishRosTf() {
-  NavStated::Ptr state = fusion_ptr_->GetCurrentState();
-  //NavStated::Ptr state = fusion_ptr_->GetImuPredictedState();
+  NavStated::Ptr state = fusion_ptr_->GetRegistrationState();
   geometry_msgs::msg::TransformStamped transform_stamped;
   transform_stamped.header.stamp = rclcpp::Time(static_cast<int64_t>(state->timestamp_ * 1e9)); 
   transform_stamped.header.frame_id = "map";
@@ -163,17 +152,5 @@ void FusionFlow::PublishRosTf() {
   transform_stamped.transform.rotation.z = state->R_.unit_quaternion().z();
 
   tf_broadcaster_->sendTransform(transform_stamped);
-}
-
-void FusionFlow::PublishLocalization() {
-  NavStated::Ptr state = fusion_ptr_->GetCurrentState();
-
-  std_msgs::msg::Float64MultiArray msg;
-  msg.data.resize(3);
-  msg.data[0] = state->p_.x();
-  msg.data[1] = state->p_.y();
-  msg.data[2] = state->p_.z();
-
-  fusion_localization_publisher_->publish(msg);
 }
 } // namespace localization
