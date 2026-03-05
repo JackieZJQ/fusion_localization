@@ -17,8 +17,6 @@ namespace localization {
 
 InertialExtrapolator::InertialExtrapolator(const Options& options)
   : options_(options) {
-
-  // todo
 }
 
 void InertialExtrapolator::PushImu(IMU::Ptr imu) {
@@ -37,8 +35,16 @@ void InertialExtrapolator::PushImu(IMU::Ptr imu) {
   if (latest_imu_time_ <= eskf_corrected_time_) return;
   eskf_pred_.Predict(*imu);
 
-  // 如果之前有校正等待重放，这里可以顺便做，也可以留给定时器
-  if (need_replay_) ReplayImuBuffer();
+  // ========== 关键修改：先判断是否需要重放 ==========
+  if (need_replay_) {
+    // 有待处理的校正：从校正时刻开始，把缓存中所有晚于校正时刻的 IMU 
+    // （包括刚入缓存的这帧）一次性重放，保证递推顺序正确
+    ReplayImuBuffer();
+  } else {
+    // 没有待处理的校正：正常逐帧递推当前 IMU
+    eskf_pred_.Predict(*imu);
+  }
+
 }
 
 void InertialExtrapolator::CorrectState(const ESKFD& eskf_corrected, double eskf_corrected_time) {

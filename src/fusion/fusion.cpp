@@ -350,7 +350,7 @@ void Fusion::ProcessImu(IMU::Ptr imu) {
   // 2.将数据传给IMU递推预测定位器，进行状态预测
   if (state_ == state::kWAITINGFORRTK || state_ == state::kINITIALIZED) return;
   
-  // inertial_extrapolator_.PushImu(imu);
+  inertial_extrapolator_.PushImu(imu);
 }
 
 void Fusion::ProcessPointCloud(CLOUD::Ptr cloud) {
