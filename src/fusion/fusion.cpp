@@ -21,11 +21,11 @@ Fusion::Fusion(const YAML::Node& yaml)
   registration_manager_ptr_ = std::make_shared<RegistrationManager>(yaml_);
   tile_manager_ptr_ = std::make_shared<TileManager>(yaml_);
 
-  InitConfigFromYaml();
+  InitConfig();
   InitImu();
 }
 
-bool Fusion::InitConfigFromYaml() {
+bool Fusion::InitConfig() {
   //地图原点
   auto origin_data = yaml_["origin"].as<std::vector<double>>();
   map_origin_ = Vec3d(origin_data[0], origin_data[1], origin_data[2]);
@@ -47,67 +47,83 @@ bool Fusion::InitConfigFromYaml() {
 }
 
 bool Fusion::InitImu() {
-  // 是否使用yaml中的值初始化
   bool init_imu_online = yaml_["imu"]["init_imu_online"].as<bool>();
   if (init_imu_online) {
-    //在线初始化
     StaticIMUInit::Options imu_init_options;
-    imu_init_options.use_speed_for_static_checking_ = false; //暂时不用轮速计
+    imu_init_options.use_speed_for_static_checking_ = false;
     imu_init_ = StaticIMUInit(imu_init_options);
-    
+    // state_ 保持 kNOT_READY，等在线初始化完成
     return true;
   } else {
-    //使用YAML文件初始化IMU
     InitImuOffline();
+    // ★ 离线初始化完成，直接切状态
+    TransitionTo(State::kWAITING_FOR_RTK);
     return true;
   }
 }
 
 void Fusion::ProcessMeasurements(const MessageSync::MeasureGroup& meas) {
-
-  // 1.更新已完成同步的IMU和雷达数据
   synced_measures_ = meas;
-  if (imu_need_init_) { InitImuOnline(); return; }
 
-  // 2.确认当前状态是否为kWORKING状态
-  if (state_ == state::kWORKING) {
-    // 2.1 使用IMU数据预测雷达[lidar_begin, lidar_end]时间段内的状态
-    EskfPredict();
-    // 2.2 对雷达数据进行去畸变
-    DoUndistort();
-  } else {
-    //todo
-    //这一步的意义是什么
-    undistorted_scan_ = synced_measures_.lidar_;
-    undistorted_scan_->header.stamp = static_cast<uint64_t>(synced_measures_.lidar_begin_time_ * 1e6);
+  switch (state_) {
+    case State::kNOT_READY:
+      InitImuOnline();
+      break;
+
+    case State::kWAITING_FOR_RTK:
+      PrepareCurrentScan();
+      if (last_gnss_ != nullptr) {
+        TransitionTo(State::kSEARCHING);
+        // 直接尝试搜索
+        if (SearchRtk()) {
+          TransitionTo(State::kINITIALIZED);
+        }
+      }
+      break;
+
+    case State::kSEARCHING:
+      PrepareCurrentScan();
+      if (SearchRtk()) {
+        TransitionTo(State::kINITIALIZED);
+      }
+      break;
+
+    case State::kINITIALIZED:
+      PrepareCurrentScan();
+      if (DoLidarLocalization()) {
+        TransitionTo(State::kWORKING);
+      }
+      break;
+
+    case State::kWORKING:
+      EskfPredict();
+      DoUndistort();
+      PrepareCurrentScan();
+      DoLidarLocalization();
+      break;
+
+    case State::kLOST:
+      // 预留
+      break;
   }
-
-  // 3.执行一次配准，更新主滤波器eskf_的observation
-  DoAlign();
 }
 
 void Fusion::InitImuOnline() {
   for (auto imu : synced_measures_.imu_) {
-    //每一次ADDIMU后，都会计算是否符合初始化条件，如果符合，则计算IMU初始化数据
-    imu_init_.AddIMU(*imu); 
+    imu_init_.AddIMU(*imu);
   }
 
   if (imu_init_.InitSuccess()) {
-    //读取初始零偏，设置ESKF
     localization::ESKFD::Options options;
-    // 噪声由初始化器估计
-    // options.gyro_var_ = sqrt(imu_init_.GetCovGyro()[0]);
-    // options.acce_var_ = sqrt(imu_init_.GetCovAcce()[0]);
-
     options.update_bias_acce_ = false;
     options.update_bias_gyro_ = false;
-    eskf_.SetInitialConditions(options, imu_init_.GetInitBg(), imu_init_.GetInitBa(), imu_init_.GetGravity());
-    imu_need_init_ = false;
-  
-    LOG(INFO) << "IMU在线初始化成功";
+    eskf_.SetInitialConditions(options, imu_init_.GetInitBg(),
+                               imu_init_.GetInitBa(), 
+                               imu_init_.GetGravity());
 
-    //todo
-    //imu初始化成功后，把数据记录于yaml文件中
+    LOG(INFO) << "IMU在线初始化成功";
+    // ★ 不再用 imu_need_init_，直接切状态
+    TransitionTo(State::kWAITING_FOR_RTK);
   }
 }
 
@@ -119,20 +135,18 @@ void Fusion::InitImuOffline() {
   Vec3d init_ba = math::VecFromArray(init_ba_array);
   Vec3d gravity = math::VecFromArray(gravity_array);
 
-  // 读取初始零偏，设置ESKF
   localization::ESKFD::Options options;
-  
   options.update_bias_acce_ = false;
   options.update_bias_gyro_ = false;
   eskf_.SetInitialConditions(options, init_bg, init_ba, gravity);
-  
-  imu_need_init_ = false;
 
-  LOG(INFO) << "\n===============使用YAML初始化IMU成功=============\n"
+  // ★ 删掉 imu_need_init_ = false; 状态转换由调用方负责
+
+  LOG(INFO) << "\n===============使用YAML初始化IMU成功========================\n"
             << "Init Bg: " << init_bg.transpose() << "\n"
             << "Init Ba: " << init_ba.transpose() << "\n"
             << "Gravity: " << gravity.transpose() << "\n"
-            << "=================================================";
+            << "============================================================";
 }
 
 void Fusion::EskfPredict() {
@@ -174,30 +188,6 @@ void Fusion::DoUndistort() {
 
   undistorted_scan_ = cloud;
 
-}
-
-void Fusion::DoAlign() {
-  FullCloudPtr undistorted_scan_trans(new FullPointCloudType);
-  pcl::transformPointCloud(*undistorted_scan_, *undistorted_scan_trans, TIL_.matrix());
-  undistorted_scan_ = undistorted_scan_trans;
-  current_scan_ = ConvertToCloud<FullPointType>(undistorted_scan_);
-  current_scan_ = VoxelCloud(current_scan_, 0.5);
-
-  // 存在RTK信号，尝试初始化信号
-  if (state_ == state::kWAITINGFORRTK && last_gnss_ != nullptr) {
-    bool is_initialized = SearchRtk();
-    if (is_initialized) state_ = state::kINITIALIZED;
-
-    return;
-  };
-  
-  //todo
-  //调整state逻辑流
-  bool is_localized = DoLidarLocalization();
-  if (state_ == state::kINITIALIZED && is_localized) {
-    state_ = state::kWORKING;
-    LOG(INFO) << "点云定位成功，进入WORKING状态";
-  }
 }
 
 bool Fusion::SearchRtk() {
@@ -251,21 +241,22 @@ bool Fusion::SearchRtk() {
   LOG(INFO) << "max score: " << max_ele->score_ << ", pose: \n" << max_ele->result_pose_.matrix();
   
   if (max_ele->score_ > rtk_search_min_score_) {
-    LOG(INFO) << "初始化成功, score: " << max_ele->score_ << ">" << rtk_search_min_score_;
+      LOG(INFO) << "初始化成功, score: " << max_ele->score_ << ">" << rtk_search_min_score_;
 
-    //重置滤波器状态
-    auto state = eskf_.GetNominalState();
-    state.R_ = max_ele->result_pose_.so3();
-    state.p_ = max_ele->result_pose_.translation();
-    state.v_.setZero();
-    eskf_.SetX(state, eskf_.GetGravity());
+      // 重置滤波器状态
+      auto nav = eskf_.GetNominalState();
+      nav.R_ = max_ele->result_pose_.so3();
+      nav.p_ = max_ele->result_pose_.translation();
+      nav.v_.setZero();
+      nav.timestamp_ = synced_measures_.lidar_end_time_;  // ★ 修复根因！
+      eskf_.SetX(nav, eskf_.GetGravity());
 
-    ESKFD::Mat18T cov;
-    cov = ESKFD::Mat18T::Identity() * 1e-4;
-    cov.block<12, 12>(6, 6) = Eigen::Matrix<double, 12, 12>::Identity() * 1e-6;
-    eskf_.SetCov(cov);
+      ESKFD::Mat18T cov;
+      cov = ESKFD::Mat18T::Identity() * 1e-4;
+      cov.block<12, 12>(6, 6) = Eigen::Matrix<double, 12, 12>::Identity() * 1e-6;
+      eskf_.SetCov(cov);
 
-    return true;
+      return true;
   }
 
   init_failed_ = true;
@@ -343,14 +334,12 @@ bool Fusion::DoLidarLocalization() {
 }
 
 void Fusion::ProcessImu(IMU::Ptr imu) { 
-  // 1.将IMU数据传递给消息同步器，等待与雷达数据同步后触发回调函数ProcessMeasurements
-  //   此处IMU数据主要用于雷达去畸变和配准时状态预测
+  // 1. 始终给消息同步器
   sync_ptr_->ProcessIMU(imu);
 
-  // 2.将数据传给IMU递推预测定位器，进行状态预测
-  if (state_ == state::kWAITINGFORRTK || state_ == state::kINITIALIZED) return;
-  
-  inertial_extrapolator_.PushImu(imu);
+  // 2. 只有 kWORKING 状态才给 extrapolator
+  if (state_ != State::kWORKING) return;
+  //inertial_extrapolator_.PushImu(imu);  // ★ 取消注释！
 }
 
 void Fusion::ProcessPointCloud(CLOUD::Ptr cloud) {
@@ -366,22 +355,73 @@ bool Fusion::IsImuReplaying() {
   return inertial_extrapolator_.IsReplaying();
 }
 
-NavStated::Ptr Fusion::GetRegistrationState() const {
-  if (state_ == state::kWORKING) {
-    return std::make_shared<NavStated>(eskf_.GetNominalState());
-  } else {
-    //todo
-    //未初始化下，应该执行的操作
+const char* Fusion::StateToString(State s) {
+  switch (s) {
+    case State::kNOT_READY:       return "NOT_READY";
+    case State::kWAITING_FOR_RTK: return "WAITING_FOR_RTK";
+    case State::kSEARCHING:       return "SEARCHING";
+    case State::kINITIALIZED:     return "INITIALIZED";
+    case State::kWORKING:         return "WORKING";
+    case State::kLOST:            return "LOST";
+    default:                      return "UNKNOWN";
   }
 }
 
-NavStated::Ptr Fusion::GetImuPredictedState() const {
-  if (state_ == state::kWORKING) {
-    return std::make_shared<NavStated>(inertial_extrapolator_.GetState());
-  } else {
-    //todo
-    //未初始化下，应该执行的操作
+void Fusion::TransitionTo(State new_state) {
+  LOG(INFO) << "状态转换: " << StateToString(state_) << " -> " << StateToString(new_state);
+
+  switch (new_state) {
+    case State::kWAITING_FOR_RTK:
+      // IMU初始化完成，无特殊操作
+      break;
+
+    case State::kINITIALIZED: {
+      // ★ SearchRtk 成功后，修正 eskf_ 的 current_time_
+      auto nav = eskf_.GetNominalState();
+      nav.timestamp_ = synced_measures_.lidar_end_time_;
+      eskf_.SetX(nav, eskf_.GetGravity());
+      break;
+    }
+
+    case State::kWORKING:
+      // 首次配准成功，extrapolator 已在 DoLidarLocalization 中被 CorrectState
+      break;
+
+    default:
+      break;
   }
+
+  state_ = new_state;
+}
+
+void Fusion::PrepareCurrentScan() {
+  // 非WORKING状态：不去畸变，直接用原始点云
+  if (state_ != State::kWORKING) {
+    undistorted_scan_ = synced_measures_.lidar_;
+    undistorted_scan_->header.stamp =
+        static_cast<uint64_t>(synced_measures_.lidar_begin_time_ * 1e6);
+  }
+
+  // 坐标转换 + 降采样（所有状态通用）
+  FullCloudPtr scan_trans(new FullPointCloudType);
+  pcl::transformPointCloud(*undistorted_scan_, *scan_trans, TIL_.matrix());
+  undistorted_scan_ = scan_trans;
+  current_scan_ = ConvertToCloud<FullPointType>(undistorted_scan_);
+  current_scan_ = VoxelCloud(current_scan_, 0.5);
+}
+
+NavStated::Ptr Fusion::GetRegistrationState() const {
+  if (state_ == State::kWORKING) {
+    return std::make_shared<NavStated>(eskf_.GetNominalState());
+  }
+  return nullptr;
+}
+
+NavStated::Ptr Fusion::GetImuPredictedState() const {
+  if (state_ == State::kWORKING) {
+    return std::make_shared<NavStated>(inertial_extrapolator_.GetState());
+  }
+  return nullptr;
 }
 
 FullCloudPtr Fusion::GetUndistorScan() const {

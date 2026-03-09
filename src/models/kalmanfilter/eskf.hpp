@@ -44,26 +44,26 @@ public:
   struct Options {
     Options() = default;
 
-    //IMU 测量与零偏参数
+    // IMU 测量与零偏参数
     double imu_dt_ = 0.01;  // IMU测量间隔
-    //NOTE IMU噪声项都为离散时间，不需要再乘dt，可以由初始化器指定IMU噪声
+    // NOTE IMU噪声项都为离散时间，不需要再乘dt，可以由初始化器指定IMU噪声
     double gyro_var_ = 1e-5;       // 陀螺测量标准差
     double acce_var_ = 1e-2;       // 加计测量标准差
     double bias_gyro_var_ = 1e-6;  // 陀螺零偏游走标准差
     double bias_acce_var_ = 1e-4;  // 加计零偏游走标准差
 
-    //里程计参数
+    // 里程计参数
     double odom_var_ = 0.5;
     double odom_span_ = 0.1;        // 里程计测量间隔
     double wheel_radius_ = 0.155;   // 轮子半径
     double circle_pulse_ = 1024.0;  // 编码器每圈脉冲数
 
-    //RTK 观测参数
+    // RTK 观测参数
     double gnss_pos_noise_ = 0.1;                   // GNSS位置噪声
     double gnss_height_noise_ = 0.1;                // GNSS高度噪声
     double gnss_ang_noise_ = 1.0 * math::kDEG2RAD;  // GNSS旋转噪声
 
-    //其他配置
+    // 其他配置
     bool update_bias_gyro_ = true;  // 是否更新陀螺bias
     bool update_bias_acce_ = true;  // 是否更新加计bias
   };
@@ -82,7 +82,9 @@ public:
    * @param init_ba 初始零偏 加计
    * @param gravity 重力
    */
-  void SetInitialConditions(Options options, const VecT& init_bg, const VecT& init_ba,
+  void SetInitialConditions(Options options, 
+                            const VecT& init_bg, 
+                            const VecT& init_ba,
                             const VecT& gravity = VecT(0, 0, -9.8)) {
     BuildNoise(options);
     options_ = options;
@@ -226,8 +228,11 @@ private:
 
 template <typename S>
 bool ESKF<S>::Predict(const IMU& imu) {
-  assert(imu.timestamp_ >= current_time_);
-
+  if(imu.timestamp_ >= current_time_)  //todo
+  {
+    current_time_ = imu.timestamp_;
+    return true;
+  }
   double dt = imu.timestamp_ - current_time_;
   if (dt > (5 * options_.imu_dt_) || dt < 0) {
     // 时间间隔不对，可能是第一个IMU数据，没有历史信息

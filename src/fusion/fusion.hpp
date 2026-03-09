@@ -44,29 +44,34 @@ public:
 
   ~Fusion() = default;
 
-  bool InitConfigFromYaml();
+  enum class State {
+    kNOT_READY,        // IMU未初始化
+    kWAITING_FOR_RTK,  // 等待RTK信号
+    kSEARCHING,        // RTK网格搜索中
+    kINITIALIZED,      // 搜索成功，首次配准验证
+    kWORKING,          // 正常定位
+    kLOST,             // 预留：丢失重定位
+  };
+
+  bool InitConfig();
+
   bool InitImu();
 
   //处理输入
   void ProcessRtk(GNSS::Ptr gnss);
+
   void ProcessImu(IMU::Ptr imu);
+
   void ProcessPointCloud(CLOUD::Ptr cloud);
 
   //获取当前状态
   NavStated::Ptr GetRegistrationState() const;
   
-  NavStated::Ptr GetImuPredictedState() const; //获取使用 IMU 预测的状态
+  NavStated::Ptr GetImuPredictedState() const; // 获取使用 IMU 预测的状态
   
   FullCloudPtr GetUndistorScan() const;
   
   CloudPtr GetStaticPointcloudMap() const;
-
-  //RTK状态
-  enum class state {
-    kWAITINGFORRTK,  //等待初始的RTK
-    kINITIALIZED,    //已初始化成功，定位暂未正常工作
-    kWORKING,        //正常工作
-  };
 
   //网格搜索时的结构
   struct GridSearchResult {
@@ -102,19 +107,28 @@ private:
 
   bool IsImuReplaying();
 
+  // 状态转换（统一入口）
+  void TransitionTo(State new_state);
+
+  // 准备当前扫描（坐标转换+降采样，不去畸变时也用）
+  void PrepareCurrentScan();
+
+  // 状态名称（调试打印用）
+  static const char* StateToString(State s);
+
 private:
   //标志位
-  state state_ = state::kWAITINGFORRTK;
+  State state_ = State::kNOT_READY;  // 当前状态
 
   //地图原点
   Vec3d map_origin_ = Vec3d::Zero();                
 
-  std::shared_ptr<MessageSync> sync_ptr_ = nullptr;  //消息同步器
-  StaticIMUInit imu_init_;                           //IMU静止初始化
+  std::shared_ptr<MessageSync> sync_ptr_ = nullptr;  // 消息同步器
+  StaticIMUInit imu_init_;                           // IMU静止初始化
 
   //滤波器
   ESKFD eskf_;
-  std::vector<NavStated> imu_states_;  //ESKF预测期间的状态
+  std::vector<NavStated> imu_states_;  // ESKF预测期间的状态
 
   //imu递推预测定位
   InertialExtrapolator inertial_extrapolator_ { InertialExtrapolator::Options() };
@@ -124,12 +138,11 @@ private:
   CloudPtr current_scan_ = nullptr;
 
   SE3 TIL_;
-  MessageSync::MeasureGroup synced_measures_;         //同步IMU与雷达扫描
+  MessageSync::MeasureGroup synced_measures_;         // 同步IMU与雷达扫描
   GNSS::Ptr last_gnss_ = nullptr;
 
-  bool init_failed_ = false;  //RTK初始化是否失败过
-  SE3 last_searched_pose_;    //上次搜索的RTK位置
-  bool imu_need_init_ = true; //是否需要估计IMU初始零偏
+  bool init_failed_ = false;  // RTK初始化是否失败过
+  SE3 last_searched_pose_;    // 上次搜索的RTK位置
 
   RegistrationManager::Ptr registration_manager_ptr_;
 
