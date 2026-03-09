@@ -51,6 +51,8 @@ private:
   void PublishUndistortScan();
   void PublishRosTf();
   void PublishOdom();
+  void PublishImuPredictedTf();
+  void PublishImuPredictedOdom();
 
   // 订阅传感器数据
   rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_subscriber_;
@@ -61,6 +63,7 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr undistort_scan_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr static_pointcloud_map_publisher_;
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odometry_publisher_;
+  rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr imu_predicted_odometry_publisher_;
   rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr fusion_localization_publisher_;
 
   // tf广播器

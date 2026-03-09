@@ -339,7 +339,7 @@ void Fusion::ProcessImu(IMU::Ptr imu) {
 
   // 2. 只有 kWORKING 状态才给 extrapolator
   if (state_ != State::kWORKING) return;
-  //inertial_extrapolator_.PushImu(imu);  // ★ 取消注释！
+  inertial_extrapolator_.PushImu(imu);  // ★ 取消注释！
 }
 
 void Fusion::ProcessPointCloud(CLOUD::Ptr cloud) {

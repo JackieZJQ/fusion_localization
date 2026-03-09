@@ -228,11 +228,8 @@ private:
 
 template <typename S>
 bool ESKF<S>::Predict(const IMU& imu) {
-  if(imu.timestamp_ >= current_time_)  //todo
-  {
-    current_time_ = imu.timestamp_;
-    return true;
-  }
+  assert(imu.timestamp_ >= current_time_);
+
   double dt = imu.timestamp_ - current_time_;
   if (dt > (5 * options_.imu_dt_) || dt < 0) {
     // 时间间隔不对，可能是第一个IMU数据，没有历史信息
