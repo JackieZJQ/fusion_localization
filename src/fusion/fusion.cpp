@@ -187,7 +187,9 @@ void Fusion::DoUndistort() {
   });
 
   undistorted_scan_ = cloud;
-
+  // 去畸变后所有点都在 lidar_end_time 时刻，stamp 必须设为 end_time
+  undistorted_scan_->header.stamp =
+      static_cast<uint64_t>(synced_measures_.lidar_end_time_ * 1e6);
 }
 
 bool Fusion::SearchRtk() {
@@ -399,7 +401,7 @@ void Fusion::PrepareCurrentScan() {
   if (state_ != State::kWORKING) {
     undistorted_scan_ = synced_measures_.lidar_;
     undistorted_scan_->header.stamp =
-        static_cast<uint64_t>(synced_measures_.lidar_begin_time_ * 1e6);
+        static_cast<uint64_t>(synced_measures_.lidar_end_time_ * 1e6);
   }
 
   // 坐标转换 + 降采样（所有状态通用）

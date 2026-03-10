@@ -28,6 +28,7 @@ FusionFlow::FusionFlow(const rclcpp::Node::SharedPtr& node)
 
   //NEW创建回调组
   sensor_callback_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+  imu_callback_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
   InitRosInterfaces();
 
@@ -35,12 +36,17 @@ FusionFlow::FusionFlow(const rclcpp::Node::SharedPtr& node)
 }
 
 void FusionFlow::InitRosInterfaces() {
-  //订阅（共用同一 MutuallyExclusive 回调组，串行处理）
+  // GNSS/LIDAR 回调组（共用同一 MutuallyExclusive 回调组，串行处理）
   rclcpp::SubscriptionOptions sensor_opts;
   sensor_opts.callback_group = sensor_callback_group_;
 
+  // IMU 回调组
+  rclcpp::SubscriptionOptions imu_opts;
+  imu_opts.callback_group = imu_callback_group_;
+
   //订阅传感器消息
   imu_subscriber_ = node_->create_subscription<sensor_msgs::msg::Imu>("/imu", 50, std::bind(&FusionFlow::ImuCallback, this, std::placeholders::_1), sensor_opts);
+  
   gnss_subscriber_ = node_->create_subscription<sensor_msgs::msg::NavSatFix>("/navsatfix", 10, std::bind(&FusionFlow::GnssCallback, this, std::placeholders::_1), sensor_opts);
   cloud_subscriber_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>("/rslidar_points", 10, std::bind(&FusionFlow::CloudCallback, this, std::placeholders::_1), sensor_opts);
 
@@ -91,9 +97,10 @@ void FusionFlow::CloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cl
   fusion_ptr_->ProcessPointCloud(cloud_ptr);
 
   //todo
-  //点云定位完成后,获取当前eskf状态
+  // 点云定位完成后,获取当前eskf状态
   PublishOdom();
-  //PublishRosTf();
+  PublishRegistrationTf();
+  PublishUndistortScan();
 }
 
 void FusionFlow::PublishUndistortScan() {
@@ -140,7 +147,7 @@ void FusionFlow::PublishOdom() {
   odometry_publisher_->publish(msg);
 }
 
-void FusionFlow::PublishRosTf() {
+void FusionFlow::PublishRegistrationTf() {
   NavStated::Ptr state = fusion_ptr_->GetRegistrationState();
   if (state == nullptr) return;
 
@@ -163,6 +170,7 @@ void FusionFlow::PublishRosTf() {
 
 void FusionFlow::PublishImuPredictedOdom() {
   NavStated::Ptr state = fusion_ptr_->GetImuPredictedState();
+  if (!state) state = fusion_ptr_->GetRegistrationState();
   if (!state) return;  // 非 WORKING 状态
 
   nav_msgs::msg::Odometry msg;

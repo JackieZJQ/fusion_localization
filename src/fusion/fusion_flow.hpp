@@ -49,7 +49,7 @@ private:
   //发布rviz消息
   void PublishStaticPointcloudMap();
   void PublishUndistortScan();
-  void PublishRosTf();
+  void PublishRegistrationTf();
   void PublishOdom();
   void PublishImuPredictedTf();
   void PublishImuPredictedOdom();
@@ -74,7 +74,8 @@ private:
   rclcpp::Node::SharedPtr node_;
 
   // 回调组
-  rclcpp::CallbackGroup::SharedPtr sensor_callback_group_; // IMU/GNSS/Cloud 回调组，串行
+  rclcpp::CallbackGroup::SharedPtr sensor_callback_group_; // GNSS/Cloud 回调组，串行
+  rclcpp::CallbackGroup::SharedPtr imu_callback_group_; // IMU 回调组
 };
 } // namesapce localization
 
