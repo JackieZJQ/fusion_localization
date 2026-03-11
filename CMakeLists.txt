@@ -46,9 +46,11 @@ file(GLOB_RECURSE ALL_SRCS "*.cpp")
 file(GLOB_RECURSE UTM_CONVERT_SRCS "*.cc")
 file(GLOB_RECURSE NODE_SRCS "src/app/fusion_node.cpp")
 file(GLOB_RECURSE INS_NODE_SRCS "src/app/ins_node.cpp")
+file(GLOB_RECURSE IMU_PRED_NODE_SRCS "src/app/imu_predictor_node.cpp")
 
 list(REMOVE_ITEM ALL_SRCS ${NODE_SRCS})
 list(REMOVE_ITEM ALL_SRCS ${INS_NODE_SRCS})
+list(REMOVE_ITEM ALL_SRCS ${IMU_PRED_NODE_SRCS})  # ★ 新增
 list(FILTER ALL_SRCS EXCLUDE REGEX ".*/third_party/fast_gicp/.*")
 
 # fast_gicp 选项
@@ -110,6 +112,17 @@ add_executable(ins_localization_node src/app/ins_node.cpp)
 ament_target_dependencies(ins_localization_node rclcpp)
 target_link_libraries(ins_localization_node fusion_localization_core)
 
+# ★ 新增
+add_executable(imu_predictor_node src/app/imu_predictor_node.cpp)
+ament_target_dependencies(imu_predictor_node rclcpp sensor_msgs nav_msgs tf2_ros geometry_msgs)
+target_include_directories(imu_predictor_node PRIVATE
+  ${PROJECT_SOURCE_DIR}/src
+  ${PROJECT_SOURCE_DIR}/third_party/sophus
+  ${EIGEN3_INCLUDE_DIR}
+  ${Glog_INCLUDE_DIRS}
+)
+target_link_libraries(imu_predictor_node ${GLOG_LIBRARIES})
+
 # ---------------- install ----------------
 install(TARGETS fusion_localization_core
   EXPORT export_fusion_localization_core
@@ -117,7 +130,7 @@ install(TARGETS fusion_localization_core
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin)
 
-install(TARGETS fusion_localization_node ins_localization_node
+install(TARGETS fusion_localization_node ins_localization_node imu_predictor_node
   RUNTIME DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY launch

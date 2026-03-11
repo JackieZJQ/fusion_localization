@@ -28,7 +28,6 @@ FusionFlow::FusionFlow(const rclcpp::Node::SharedPtr& node)
 
   //NEW创建回调组
   sensor_callback_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-  imu_callback_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
   InitRosInterfaces();
 
@@ -40,29 +39,20 @@ void FusionFlow::InitRosInterfaces() {
   rclcpp::SubscriptionOptions sensor_opts;
   sensor_opts.callback_group = sensor_callback_group_;
 
-  // IMU 回调组
-  rclcpp::SubscriptionOptions imu_opts;
-  imu_opts.callback_group = imu_callback_group_;
-
   //订阅传感器消息
   imu_subscriber_ = node_->create_subscription<sensor_msgs::msg::Imu>("/imu", 50, std::bind(&FusionFlow::ImuCallback, this, std::placeholders::_1), sensor_opts);
-  
   gnss_subscriber_ = node_->create_subscription<sensor_msgs::msg::NavSatFix>("/navsatfix", 10, std::bind(&FusionFlow::GnssCallback, this, std::placeholders::_1), sensor_opts);
   cloud_subscriber_ = node_->create_subscription<sensor_msgs::msg::PointCloud2>("/rslidar_points", 10, std::bind(&FusionFlow::CloudCallback, this, std::placeholders::_1), sensor_opts);
 
   //发布定位数据
   undistort_scan_publisher_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("/rslidar_points_undistorted", 10);
   fusion_localization_publisher_ = node_->create_publisher<std_msgs::msg::Float64MultiArray>("/localization/fusion", 10);
-  odometry_publisher_ = node_->create_publisher<nav_msgs::msg::Odometry>("/localization/odometry", 10);
-  imu_predicted_odometry_publisher_ = node_->create_publisher<nav_msgs::msg::Odometry>("/localization/imu_predicted_odometry", 50);
+  odometry_publisher_ = node_->create_publisher<nav_msgs::msg::Odometry>("/localization/registration_state", 10);
 
   //大地图发布（使用 Reentrant 回调组，可并行处理）
   rclcpp::QoS map_qos(rclcpp::KeepLast(1));
   map_qos.transient_local().reliable();
   static_pointcloud_map_publisher_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("/localization/static_pointcloud_map", map_qos);
-
-  //初始化tf广播器
-  tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(node_);
 }
 
 void FusionFlow::ImuCallback(const sensor_msgs::msg::Imu::SharedPtr imu_msg_ptr) {
@@ -70,9 +60,6 @@ void FusionFlow::ImuCallback(const sensor_msgs::msg::Imu::SharedPtr imu_msg_ptr)
   //转换为IMU格式
   IMU::Ptr imu = std::make_shared<localization::IMU>(imu_msg_ptr);
   fusion_ptr_->ProcessImu(imu);
-
-  PublishImuPredictedOdom();
-  PublishImuPredictedTf();
 }
 
 void FusionFlow::GnssCallback(const sensor_msgs::msg::NavSatFix::SharedPtr gnss_msg_ptr) {
@@ -97,10 +84,9 @@ void FusionFlow::CloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cl
   fusion_ptr_->ProcessPointCloud(cloud_ptr);
 
   //todo
-  // 点云定位完成后,获取当前eskf状态
-  PublishOdom();
-  PublishRegistrationTf();
+  //点云定位完成后,获取当前eskf状态
   PublishUndistortScan();
+  PublishRegistrationOdom();
 }
 
 void FusionFlow::PublishUndistortScan() {
@@ -115,6 +101,47 @@ void FusionFlow::PublishUndistortScan() {
   undistort_scan_publisher_->publish(cloud_msg);
 }
 
+void FusionFlow::PublishRegistrationOdom() {
+  NavStated::Ptr state = fusion_ptr_->GetRegistrationState();
+  if (!state) return;
+
+  nav_msgs::msg::Odometry msg;
+  msg.header.stamp = rclcpp::Time(static_cast<int64_t>(state->timestamp_ * 1e9));
+  msg.header.frame_id = "map";
+  msg.child_frame_id = "rslidar";
+
+  // pose: p + R
+  msg.pose.pose.position.x = state->p_.x();
+  msg.pose.pose.position.y = state->p_.y();
+  msg.pose.pose.position.z = state->p_.z();
+  msg.pose.pose.orientation.w = state->R_.unit_quaternion().w();
+  msg.pose.pose.orientation.x = state->R_.unit_quaternion().x();
+  msg.pose.pose.orientation.y = state->R_.unit_quaternion().y();
+  msg.pose.pose.orientation.z = state->R_.unit_quaternion().z();
+
+  // twist.linear: v
+  msg.twist.twist.linear.x = state->v_.x();
+  msg.twist.twist.linear.y = state->v_.y();
+  msg.twist.twist.linear.z = state->v_.z();
+
+  // twist.angular: bg（借用这个字段传零偏）
+  msg.twist.twist.angular.x = state->bg_.x();
+  msg.twist.twist.angular.y = state->bg_.y();
+  msg.twist.twist.angular.z = state->bg_.z();
+
+  // covariance[0-2]: ba，covariance[3-5]: gravity
+  Vec3d ba = state->ba_;
+  Vec3d g = fusion_ptr_->GetGravity();
+  msg.pose.covariance[0] = ba.x();
+  msg.pose.covariance[1] = ba.y();
+  msg.pose.covariance[2] = ba.z();
+  msg.pose.covariance[3] = g.x();
+  msg.pose.covariance[4] = g.y();
+  msg.pose.covariance[5] = g.z();
+
+  odometry_publisher_->publish(msg);
+}
+
 void FusionFlow::PublishStaticPointcloudMap() {
   CloudPtr map = fusion_ptr_->GetStaticPointcloudMap();
 
@@ -126,88 +153,8 @@ void FusionFlow::PublishStaticPointcloudMap() {
   static_pointcloud_map_publisher_->publish(msg);
 }
 
-void FusionFlow::PublishOdom() {
-  NavStated::Ptr state = fusion_ptr_->GetRegistrationState();
-  if (state == nullptr) return;
-
-  nav_msgs::msg::Odometry msg;
-  msg.header.frame_id = "map";
-  msg.child_frame_id = "rslidar";
-  msg.header.stamp = rclcpp::Time(static_cast<int64_t>(state->timestamp_ * 1e9));
-  
-  msg.pose.pose.position.x = state->p_.x();
-  msg.pose.pose.position.y = state->p_.y();
-  msg.pose.pose.position.z = state->p_.z();
-  
-  msg.pose.pose.orientation.w = state->R_.unit_quaternion().w();
-  msg.pose.pose.orientation.x = state->R_.unit_quaternion().x();
-  msg.pose.pose.orientation.y = state->R_.unit_quaternion().y();
-  msg.pose.pose.orientation.z = state->R_.unit_quaternion().z();
-
-  odometry_publisher_->publish(msg);
-}
-
 void FusionFlow::PublishRegistrationTf() {
-  NavStated::Ptr state = fusion_ptr_->GetRegistrationState();
-  if (state == nullptr) return;
-
-  geometry_msgs::msg::TransformStamped transform_stamped;
-  transform_stamped.header.stamp = rclcpp::Time(static_cast<int64_t>(state->timestamp_ * 1e9)); 
-  transform_stamped.header.frame_id = "map";
-  transform_stamped.child_frame_id = "rslidar";
-
-  transform_stamped.transform.translation.x = state->p_.x();
-  transform_stamped.transform.translation.y = state->p_.y();
-  transform_stamped.transform.translation.z = state->p_.z();
-
-  transform_stamped.transform.rotation.w = state->R_.unit_quaternion().w();
-  transform_stamped.transform.rotation.x = state->R_.unit_quaternion().x();
-  transform_stamped.transform.rotation.y = state->R_.unit_quaternion().y();
-  transform_stamped.transform.rotation.z = state->R_.unit_quaternion().z();
-
-  tf_broadcaster_->sendTransform(transform_stamped);
-}
-
-void FusionFlow::PublishImuPredictedOdom() {
-  NavStated::Ptr state = fusion_ptr_->GetImuPredictedState();
-  if (!state) state = fusion_ptr_->GetRegistrationState();
-  if (!state) return;  // 非 WORKING 状态
-
-  nav_msgs::msg::Odometry msg;
-  msg.header.frame_id = "map";
-  msg.child_frame_id = "rslidar";
-  msg.header.stamp = rclcpp::Time(static_cast<int64_t>(state->timestamp_ * 1e9));
-
-  msg.pose.pose.position.x = state->p_.x();
-  msg.pose.pose.position.y = state->p_.y();
-  msg.pose.pose.position.z = state->p_.z();
-
-  msg.pose.pose.orientation.w = state->R_.unit_quaternion().w();
-  msg.pose.pose.orientation.x = state->R_.unit_quaternion().x();
-  msg.pose.pose.orientation.y = state->R_.unit_quaternion().y();
-  msg.pose.pose.orientation.z = state->R_.unit_quaternion().z();
-
-  imu_predicted_odometry_publisher_->publish(msg);
-}
-
-void FusionFlow::PublishImuPredictedTf() {
-  NavStated::Ptr state = fusion_ptr_->GetImuPredictedState();
-  if (!state) return;
-
-  geometry_msgs::msg::TransformStamped tf;
-  tf.header.stamp = rclcpp::Time(static_cast<int64_t>(state->timestamp_ * 1e9));
-  tf.header.frame_id = "map";
-  tf.child_frame_id = "rslidar";
-
-  tf.transform.translation.x = state->p_.x();
-  tf.transform.translation.y = state->p_.y();
-  tf.transform.translation.z = state->p_.z();
-
-  tf.transform.rotation.w = state->R_.unit_quaternion().w();
-  tf.transform.rotation.x = state->R_.unit_quaternion().x();
-  tf.transform.rotation.y = state->R_.unit_quaternion().y();
-  tf.transform.rotation.z = state->R_.unit_quaternion().z();
-
-  tf_broadcaster_->sendTransform(tf);
+  //todo
+  return;
 }
 } // namespace localization

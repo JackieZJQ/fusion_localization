@@ -330,7 +330,7 @@ bool Fusion::DoLidarLocalization() {
   eskf_.ObserveSE3(pose_se3, 1e-1, 1e-2);
 
   //更新eskf定位预测器
-  inertial_extrapolator_.CorrectState(eskf_, synced_measures_.lidar_end_time_);
+  //inertial_extrapolator_.CorrectState(eskf_, synced_measures_.lidar_end_time_);
 
   return true;
 }
@@ -340,8 +340,8 @@ void Fusion::ProcessImu(IMU::Ptr imu) {
   sync_ptr_->ProcessIMU(imu);
 
   // 2. 只有 kWORKING 状态才给 extrapolator
-  if (state_ != State::kWORKING) return;
-  inertial_extrapolator_.PushImu(imu);  // ★ 取消注释！
+  //if (state_ != State::kWORKING) return;
+  //inertial_extrapolator_.PushImu(imu);  // ★ 取消注释！
 }
 
 void Fusion::ProcessPointCloud(CLOUD::Ptr cloud) {
@@ -351,10 +351,6 @@ void Fusion::ProcessPointCloud(CLOUD::Ptr cloud) {
 void Fusion::ProcessRtk(GNSS::Ptr gnss) {
   gnss->utm_pose_.translation() -= map_origin_; //减掉地图原点
   last_gnss_ = gnss;
-}
-
-bool Fusion::IsImuReplaying() {
-  return inertial_extrapolator_.IsReplaying();
 }
 
 const char* Fusion::StateToString(State s) {
@@ -415,13 +411,6 @@ void Fusion::PrepareCurrentScan() {
 NavStated::Ptr Fusion::GetRegistrationState() const {
   if (state_ == State::kWORKING) {
     return std::make_shared<NavStated>(eskf_.GetNominalState());
-  }
-  return nullptr;
-}
-
-NavStated::Ptr Fusion::GetImuPredictedState() const {
-  if (state_ == State::kWORKING) {
-    return std::make_shared<NavStated>(inertial_extrapolator_.GetState());
   }
   return nullptr;
 }

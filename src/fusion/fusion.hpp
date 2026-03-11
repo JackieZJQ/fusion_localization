@@ -66,12 +66,12 @@ public:
 
   //获取当前状态
   NavStated::Ptr GetRegistrationState() const;
-  
-  NavStated::Ptr GetImuPredictedState() const; // 获取使用 IMU 预测的状态
-  
+
   FullCloudPtr GetUndistorScan() const;
   
   CloudPtr GetStaticPointcloudMap() const;
+
+  Vec3d GetGravity() const { return eskf_.GetGravity(); }
 
   //网格搜索时的结构
   struct GridSearchResult {
@@ -96,16 +96,11 @@ private:
   //利用IMU预测状态信息,这段时间的预测数据会放入imu_states_里
   void EskfPredict();
 
-  //执行一次配准和观测
-  void DoAlign();
-
   //对measures_中的点云去畸变
   void DoUndistort();
 
   //激光定位
   bool DoLidarLocalization();   
-
-  bool IsImuReplaying();
 
   // 状态转换（统一入口）
   void TransitionTo(State new_state);
@@ -131,7 +126,7 @@ private:
   std::vector<NavStated> imu_states_;  // ESKF预测期间的状态
 
   //imu递推预测定位
-  InertialExtrapolator inertial_extrapolator_ { InertialExtrapolator::Options() };
+  //InertialExtrapolator inertial_extrapolator_ { InertialExtrapolator::Options() };
 
   FullCloudPtr undistorted_scan_ { new FullPointCloudType() }; //矫过畸变之后的点云
   

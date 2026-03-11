@@ -38,6 +38,14 @@ def generate_launch_description():
     #                '--log-level', 'WARN',],
     # )
     
+    # ★ 新增: IMU 预测节点（独立进程）
+    imu_predictor_node = Node(
+        package='fusion_localization',
+        executable='imu_predictor_node',
+        name='imu_predictor_node',
+        output='screen',
+    )
+    
     rviz_node = Node(
         package='rviz2',
         executable='rviz2',
@@ -63,6 +71,7 @@ def generate_launch_description():
         rviz_config_arg,
         bag_path_arg,
         fusion_node,
+        imu_predictor_node,
         rviz_node,
         rosbag_play,
     ])

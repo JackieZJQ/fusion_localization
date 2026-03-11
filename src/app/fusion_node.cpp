@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
   auto fusion_node = std::make_shared<localization::FusionFlow>(node);
 
   // 多线程执行器，允许地图发布等与传感器回调并行
-  rclcpp::executors::MultiThreadedExecutor exec;
+  rclcpp::executors::SingleThreadedExecutor exec;
   exec.add_node(node);
   exec.spin();
 
