@@ -17,6 +17,7 @@
 #include <nav_msgs/msg/odometry.hpp>
 #include <tf2_ros/transform_broadcaster.h>
 #include <glog/logging.h>
+#include <deque>
 
 #include "fusion/imu_predictor.hpp"
 
@@ -40,18 +41,31 @@ ImuPredictorNode() : Node("imu_predictor_node") {
   LOG(INFO) << "ImuPredictorNode started.";
 }
 
-private:
+private:  
+std::deque<localization::IMU> imu_buffer_;
+static constexpr double kImuBufferKeepSec = 3.0;
+
 void OnImu(const sensor_msgs::msg::Imu::SharedPtr msg) {
   if (!predictor_.IsInitialized()) return;
 
   localization::IMU imu;
   imu.timestamp_ = msg->header.stamp.sec + msg->header.stamp.nanosec * 1e-9;
+  
   imu.acce_ = Eigen::Vector3d(msg->linear_acceleration.x,
                                 msg->linear_acceleration.y,
                                 msg->linear_acceleration.z);
+  
   imu.gyro_ = Eigen::Vector3d(msg->angular_velocity.x,
                                 msg->angular_velocity.y,
                                 msg->angular_velocity.z);
+
+  // 1. 入缓存
+  imu_buffer_.push_back(imu);
+  // 裁剪过期帧
+  while (!imu_buffer_.empty() &&
+         (imu.timestamp_ - imu_buffer_.front().timestamp_) > kImuBufferKeepSec) {
+    imu_buffer_.pop_front();
+  }
 
   predictor_.Predict(imu);
 
@@ -108,6 +122,12 @@ void OnCorrected(const nav_msgs::msg::Odometry::SharedPtr msg) {
                             msg->pose.covariance[5]);
 
   predictor_.SetState(state, gravity);
+
+  for (const auto& imu : imu_buffer_) {
+    if (imu.timestamp_ > state.timestamp_) {
+      predictor_.Predict(imu);
+    }
+  }
 
   RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 5000,
       "Corrected state received, t=%.3f", state.timestamp_);
