@@ -37,12 +37,20 @@ public:
     if (!initialized_) return false;
 
     double dt = imu.timestamp_ - current_time_;
-    if (dt > 0.05 || dt < 0) {
-      // 时间间隔异常，跳过但更新时间
+
+    // dt < 0：时间倒退，属于传感器异常，重置时间但不积分
+    if (dt < 0) {
       current_time_ = imu.timestamp_;
       return false;
     }
 
+    // dt > 0.5s：系统刚初始化或长时间无数据，防止积分爆炸
+    if (dt > 0.5) {
+      current_time_ = imu.timestamp_;
+      return false;
+    }
+
+    // dt 在 (0, 0.5] 范围内正常积分
     // 只递推 p, v, R，不算 F、不算 cov
     Vec3d new_p = p_ + v_ * dt + 0.5 * (R_ * (imu.acce_ - ba_)) * dt * dt + 0.5 * g_ * dt * dt;
     Vec3d new_v = v_ + R_ * (imu.acce_ - ba_) * dt + g_ * dt;
