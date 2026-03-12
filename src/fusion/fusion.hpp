@@ -23,8 +23,6 @@
 #include "models/registration/registration_manager.hpp"
 #include "models/synchronization/measure_sync.hpp"
 
-#include "fusion/inertial_extrapolator.hpp"
-
 #include "sensor_data/imu_data.hpp"
 #include "sensor_data/gnss_data.hpp"
 #include "sensor_data/nav_state.hpp"

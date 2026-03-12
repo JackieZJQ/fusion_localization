@@ -112,16 +112,9 @@ add_executable(ins_localization_node src/app/ins_node.cpp)
 ament_target_dependencies(ins_localization_node rclcpp)
 target_link_libraries(ins_localization_node fusion_localization_core)
 
-# ★ 新增
 add_executable(imu_predictor_node src/app/imu_predictor_node.cpp)
-ament_target_dependencies(imu_predictor_node rclcpp sensor_msgs nav_msgs tf2_ros geometry_msgs)
-target_include_directories(imu_predictor_node PRIVATE
-  ${PROJECT_SOURCE_DIR}/src
-  ${PROJECT_SOURCE_DIR}/third_party/sophus
-  ${EIGEN3_INCLUDE_DIR}
-  ${Glog_INCLUDE_DIRS}
-)
-target_link_libraries(imu_predictor_node ${GLOG_LIBRARIES})
+ament_target_dependencies(imu_predictor_node rclcpp)
+target_link_libraries(imu_predictor_node fusion_localization_core)
 
 # ---------------- install ----------------
 install(TARGETS fusion_localization_core

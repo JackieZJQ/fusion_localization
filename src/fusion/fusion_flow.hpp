@@ -63,6 +63,7 @@ private:
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odometry_publisher_;
   rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr fusion_localization_publisher_;
 
+  std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
   CloudConvert::Ptr cloud_converter_ptr_;
   std::shared_ptr<Fusion> fusion_ptr_;
   rclcpp::Node::SharedPtr node_;

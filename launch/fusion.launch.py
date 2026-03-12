@@ -27,18 +27,8 @@ def generate_launch_description():
         name='fusion_localization_node',
         output='screen',
     )
-
-    # rviz_node = Node(
-    #     package='rviz2',
-    #     executable='rviz2',
-    #     name='rviz2',
-    #     output='screen',
-    #     arguments=['-d', rviz_config,
-    #                '--ros-args', 
-    #                '--log-level', 'WARN',],
-    # )
     
-    # ★ 新增: IMU 预测节点（独立进程）
+    #IMU 预测节点（独立进程）
     imu_predictor_node = Node(
         package='fusion_localization',
         executable='imu_predictor_node',

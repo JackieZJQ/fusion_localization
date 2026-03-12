@@ -53,6 +53,9 @@ void FusionFlow::InitRosInterfaces() {
   rclcpp::QoS map_qos(rclcpp::KeepLast(1));
   map_qos.transient_local().reliable();
   static_pointcloud_map_publisher_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("/localization/static_pointcloud_map", map_qos);
+
+  // 初始化tf广播器
+  tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(node_);
 }
 
 void FusionFlow::ImuCallback(const sensor_msgs::msg::Imu::SharedPtr imu_msg_ptr) {
@@ -87,6 +90,7 @@ void FusionFlow::CloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cl
   //点云定位完成后,获取当前eskf状态
   PublishUndistortScan();
   PublishRegistrationOdom();
+  //PublishRegistrationTf();
 }
 
 void FusionFlow::PublishUndistortScan() {
@@ -142,6 +146,27 @@ void FusionFlow::PublishRegistrationOdom() {
   odometry_publisher_->publish(msg);
 }
 
+void FusionFlow::PublishRegistrationTf() {
+  NavStated::Ptr state = fusion_ptr_->GetRegistrationState();
+
+  geometry_msgs::msg::TransformStamped transform_stamped;
+  transform_stamped.header.stamp = rclcpp::Time(static_cast<int64_t>(state->timestamp_ * 1e9));
+  transform_stamped.header.frame_id = "map";
+  transform_stamped.child_frame_id = "rslidar";
+
+  transform_stamped.transform.translation.x = state->p_.x();
+  transform_stamped.transform.translation.y = state->p_.y();
+  transform_stamped.transform.translation.z = state->p_.z();
+
+  transform_stamped.transform.rotation.w = state->R_.unit_quaternion().w();
+  transform_stamped.transform.rotation.x = state->R_.unit_quaternion().x();
+  transform_stamped.transform.rotation.y = state->R_.unit_quaternion().y();
+  transform_stamped.transform.rotation.z = state->R_.unit_quaternion().z();
+
+  tf_broadcaster_->sendTransform(transform_stamped);
+  return;
+}
+
 void FusionFlow::PublishStaticPointcloudMap() {
   CloudPtr map = fusion_ptr_->GetStaticPointcloudMap();
 
@@ -151,10 +176,5 @@ void FusionFlow::PublishStaticPointcloudMap() {
   msg.header.stamp = node_->now();
 
   static_pointcloud_map_publisher_->publish(msg);
-}
-
-void FusionFlow::PublishRegistrationTf() {
-  //todo
-  return;
 }
 } // namespace localization
