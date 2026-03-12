@@ -90,7 +90,7 @@ void FusionFlow::CloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cl
   //点云定位完成后,获取当前eskf状态
   PublishUndistortScan();
   PublishRegistrationOdom();
-  //PublishRegistrationTf();
+  PublishRegistrationTf();
 }
 
 void FusionFlow::PublishUndistortScan() {
