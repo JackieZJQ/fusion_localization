@@ -123,9 +123,6 @@ private:
   ESKFD eskf_;
   std::vector<NavStated> imu_states_;  // ESKF预测期间的状态
 
-  //imu递推预测定位
-  //InertialExtrapolator inertial_extrapolator_ { InertialExtrapolator::Options() };
-
   FullCloudPtr undistorted_scan_ { new FullPointCloudType() }; //矫过畸变之后的点云
   
   CloudPtr current_scan_ = nullptr;

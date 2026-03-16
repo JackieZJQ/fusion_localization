@@ -52,7 +52,7 @@ public:
 
 private:
   static constexpr double kImuBufferKeepSec = 3.0;   // IMU 缓存时长
-  static constexpr double kPublishPeriodSec  = 1.0 / 25.0; // 25Hz 发布周期
+  static constexpr double kPublishPeriodSec  = 1.0 / 60.0; // 50Hz 发布周期
 
   localization::ImuPredictor predictor_;
 
@@ -173,11 +173,11 @@ private:
       }
     }
 
-    RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 5000,
-        "Corrected: t=%.3f, replayed %d IMU frames, "
-        "v=[%.3f,%.3f,%.3f]",
-        state.timestamp_, replay_count,
-        state.v_.x(), state.v_.y(), state.v_.z());
+    // RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 5000,
+    //     "Corrected: t=%.3f, replayed %d IMU frames, "
+    //     "v=[%.3f,%.3f,%.3f]",
+    //     state.timestamp_, replay_count,
+    //     state.v_.x(), state.v_.y(), state.v_.z());
 
     // RCLCPP_WARN(get_logger(),
     //             "GICP p=[%.4f,%.4f,%.4f] t=%.4f | diff_v=[%.4f,%.4f,%.4f]",
@@ -226,10 +226,10 @@ private:
     odom_pub_->publish(odom);
 
     // 每次发布都打印，不限频
-    RCLCPP_INFO(get_logger(),
-                "[Pub] t=%.4f p=[%.4f, %.4f, %.4f]",
-                state.timestamp_,
-                state.p_.x(), state.p_.y(), state.p_.z());
+    // RCLCPP_INFO(get_logger(),
+    //             "[Pub] t=%.4f p=[%.4f, %.4f, %.4f]",
+    //             state.timestamp_,
+    //             state.p_.x(), state.p_.y(), state.p_.z());
   }
 };
 } // namespace localization

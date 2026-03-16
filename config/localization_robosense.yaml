@@ -9,7 +9,7 @@ preprocess:
   lidar_type: 2
   scan_line: 32
   time_scale: 1e-3
-  point_filter_num: 5
+  point_filter_num: 6
 mapping:
   extrinsic_T: [0, 0, 0]
   extrinsic_R: [1, 0, 0, 0, 1, 0, 0, 0, 1]

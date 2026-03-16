@@ -46,7 +46,6 @@ void FusionFlow::InitRosInterfaces() {
 
   //发布定位数据
   undistort_scan_publisher_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("/rslidar_points_undistorted", 10);
-  fusion_localization_publisher_ = node_->create_publisher<std_msgs::msg::Float64MultiArray>("/localization/fusion", 10);
   odometry_publisher_ = node_->create_publisher<nav_msgs::msg::Odometry>("/localization/registration_state", 10);
 
   //大地图发布（使用 Reentrant 回调组，可并行处理）
@@ -148,6 +147,7 @@ void FusionFlow::PublishRegistrationOdom() {
 
 void FusionFlow::PublishRegistrationTf() {
   NavStated::Ptr state = fusion_ptr_->GetRegistrationState();
+  if (!state) return;
 
   geometry_msgs::msg::TransformStamped transform_stamped;
   transform_stamped.header.stamp = rclcpp::Time(static_cast<int64_t>(state->timestamp_ * 1e9));
