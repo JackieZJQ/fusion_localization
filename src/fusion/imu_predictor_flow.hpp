@@ -19,6 +19,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <nav_msgs/msg/odometry.hpp>
+#include <autoware_localization_msgs/msg/kinematic_state.hpp>
 #include <tf2_ros/transform_broadcaster.h>
 #include <glog/logging.h>
 #include <deque>
@@ -44,6 +45,8 @@ public:
 
   // 发布轨迹
   path_pub_ = create_publisher<nav_msgs::msg::Path>("/localization/imu_predictor_path", 10);
+
+  kinematicstate_pub_ = create_publisher<autoware_localization_msgs::msg::KinematicState>("/localization/kinematicstate", 10);
 
   imu_path_.header.frame_id = "map";
 
@@ -73,6 +76,7 @@ private:
   rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr registration_state_sub_;
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
+  rclcpp::Publisher<autoware_localization_msgs::msg::KinematicState>::SharedPtr kinematicstate_pub_;
 
   // IMU 回调：全频积分 + 限频发布
   void OnImu(const sensor_msgs::msg::Imu::SharedPtr msg) {
@@ -102,7 +106,7 @@ private:
     if ((imu.timestamp_ - last_publish_time_) < kPublishPeriodSec) return;
     last_publish_time_ = imu.timestamp_;
 
-    PublishState(msg->header.stamp);
+    PublishState(msg->header.stamp, imu);
   }
 
   // GICP 校正回调：差分速度 + 重放缓存
@@ -186,10 +190,10 @@ private:
   }
 
   // 发布当前状态（odom）
-  void PublishState(const rclcpp::Time& stamp) {
+  void PublishState(const rclcpp::Time& stamp, const localization::IMU& imu) {
     auto state = predictor_.GetState();
 
-    // 追加轨迹点
+    // 1.发布轨迹点
     geometry_msgs::msg::PoseStamped pose_stamped;
     pose_stamped.header.stamp = stamp;
     pose_stamped.header.frame_id = "map";
@@ -211,7 +215,7 @@ private:
 
     path_pub_->publish(imu_path_);
 
-    // 发布 odometry
+    // 2.发布odometry
     nav_msgs::msg::Odometry odom;
     odom.header.stamp    = stamp;
     odom.header.frame_id = "map";
@@ -224,6 +228,40 @@ private:
     odom.pose.pose.orientation.y = state.R_.unit_quaternion().y();
     odom.pose.pose.orientation.z = state.R_.unit_quaternion().z();
     odom_pub_->publish(odom);
+
+    // 3.发布autoware_localization_msgs
+    autoware_localization_msgs::msg::KinematicState kinematicstate;
+    kinematicstate.header.stamp = stamp;
+    kinematicstate.header.frame_id = "map";
+    kinematicstate.child_frame_id = "rslidar";
+
+    // 3.1位置
+    kinematicstate.pose_with_covariance.pose.position.x = state.p_.x();
+    kinematicstate.pose_with_covariance.pose.position.y = state.p_.y();
+    kinematicstate.pose_with_covariance.pose.position.z = state.p_.z();
+    // 3.2姿态
+    kinematicstate.pose_with_covariance.pose.orientation.w = state.R_.unit_quaternion().w();
+    kinematicstate.pose_with_covariance.pose.orientation.x = state.R_.unit_quaternion().x();
+    kinematicstate.pose_with_covariance.pose.orientation.y = state.R_.unit_quaternion().y();
+    kinematicstate.pose_with_covariance.pose.orientation.z = state.R_.unit_quaternion().z();
+
+    // 3.3全局坐标系速度
+    kinematicstate.twist_with_covariance.twist.linear.x = state.v_.x();
+    kinematicstate.twist_with_covariance.twist.linear.y = state.v_.y();
+    kinematicstate.twist_with_covariance.twist.linear.z = state.v_.z();
+
+    // 3.4自车坐标系角速度（IMU直接获取）
+    kinematicstate.twist_with_covariance.twist.angular.x = imu.gyro_.x();
+    kinematicstate.twist_with_covariance.twist.angular.y = imu.gyro_.y();
+    kinematicstate.twist_with_covariance.twist.angular.z = imu.gyro_.z();
+
+    // 3.加速度
+    // 3.1自车坐标系线加速度
+    kinematicstate.accel_with_covariance.accel.linear.x = imu.acce_.x();
+    kinematicstate.accel_with_covariance.accel.linear.y = imu.acce_.y();
+    kinematicstate.accel_with_covariance.accel.linear.z = imu.acce_.z();
+
+    kinematicstate_pub_->publish(kinematicstate);
 
     // 每次发布都打印，不限频
     // RCLCPP_INFO(get_logger(),
