@@ -85,9 +85,11 @@ private:
     // 解析 IMU
     localization::IMU imu;
     imu.timestamp_ = msg->header.stamp.sec + msg->header.stamp.nanosec * 1e-9;
+
     imu.acce_ = Eigen::Vector3d(msg->linear_acceleration.x,
                                 msg->linear_acceleration.y,
                                 msg->linear_acceleration.z);
+
     imu.gyro_ = Eigen::Vector3d(msg->angular_velocity.x,
                                 msg->angular_velocity.y,
                                 msg->angular_velocity.z);

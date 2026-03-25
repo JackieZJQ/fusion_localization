@@ -14,7 +14,6 @@
   <depend>sensor_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>tf2_geometry_msgs</depend>
-  <depend>localization_msgs</depend>
   <depend>autoware_localization_msgs</depend>
   <depend>beidou_ins_driver</depend>
   <depend>tf2</depend>

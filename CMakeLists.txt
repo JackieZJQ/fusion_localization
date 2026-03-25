@@ -27,7 +27,6 @@ find_package(nav_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
-find_package(localization_msgs REQUIRED)
 find_package(autoware_localization_msgs REQUIRED)
 find_package(message_filters REQUIRED)
 find_package(tf2 REQUIRED)
@@ -86,7 +85,6 @@ ament_target_dependencies(fusion_localization_core
   sensor_msgs
   geometry_msgs
   tf2_geometry_msgs
-  localization_msgs
   autoware_localization_msgs
   message_filters
   beidou_ins_driver
