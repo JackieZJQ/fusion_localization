@@ -1,9 +1,9 @@
 /**
  * ************************************************************************
  * 
- * @file imu_predictor_node.cpp
+ * @file map_server_node.cpp
  * @author Zhang Jiaqi (zhangiaii97@gmail.com)
- * @brief imu 预测模块节点函数
+ * @brief 点云地图管理服务节点
  * 
  * ************************************************************************
  * @copyright Copyright (c) 2026
@@ -14,7 +14,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <glog/logging.h>
 
-#include "extrapolator/imu_predictor_flow.hpp"
+#include "tiles/tile_manager_flow.hpp"
 
 int main(int argc, char** argv) {
 
@@ -24,12 +24,14 @@ int main(int argc, char** argv) {
 
   rclcpp::init(argc, argv);
 
-  auto imu_predictor_flow = std::make_shared<localization::ImuPredictorFlow>();
+  auto node = std::make_shared<rclcpp::Node>("tile_manager_node");
+  auto tile_manager_node = std::make_shared<localization::TileManagerFlow>(node);
 
   // 多线程执行器，允许地图发布等与传感器回调并行
   rclcpp::executors::SingleThreadedExecutor exec;
-  exec.add_node(imu_predictor_flow);
+  exec.add_node(node);
   exec.spin();
 
+  rclcpp::shutdown();
   return 0;
 }

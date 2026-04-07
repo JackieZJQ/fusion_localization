@@ -1,4 +1,4 @@
-#include "models/initialization/static_imu_init.hpp"
+#include "initialization/static_imu_init.hpp"
 
 namespace localization {
 StaticIMUInit::StaticIMUInit(Options options) 

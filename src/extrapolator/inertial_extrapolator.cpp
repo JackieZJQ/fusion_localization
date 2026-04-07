@@ -11,7 +11,7 @@
  * ************************************************************************
  */
 
-#include "models/extrapolator/inertial_extrapolator.hpp"
+#include "extrapolator/inertial_extrapolator.hpp"
 
 namespace localization {
 

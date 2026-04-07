@@ -36,6 +36,14 @@ def generate_launch_description():
         output='screen',
     )
     
+    #点云管理节点
+    tile_manager_node = Node(
+        package='fusion_localization',
+        executable='tile_manager_node',
+        name='tile_manager_node',
+        output='screen',
+    )
+    
     rviz_node = Node(
         package='rviz2',
         executable='rviz2',
@@ -62,6 +70,7 @@ def generate_launch_description():
         bag_path_arg,
         fusion_node,
         imu_predictor_node,
+        tile_manager_node,
         rviz_node,
         rosbag_play,
     ])

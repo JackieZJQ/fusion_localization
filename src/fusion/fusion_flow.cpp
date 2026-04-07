@@ -30,8 +30,6 @@ FusionFlow::FusionFlow(const rclcpp::Node::SharedPtr& node)
   sensor_callback_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
 
   InitRosInterfaces();
-
-  PublishStaticPointcloudMap();
 }
 
 void FusionFlow::InitRosInterfaces() {
@@ -47,11 +45,6 @@ void FusionFlow::InitRosInterfaces() {
   //发布定位数据
   undistort_scan_publisher_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("/rslidar_points_undistorted", 10);
   odometry_publisher_ = node_->create_publisher<nav_msgs::msg::Odometry>("/localization/registration_state", 10);
-
-  //大地图发布（使用 Reentrant 回调组，可并行处理）
-  rclcpp::QoS map_qos(rclcpp::KeepLast(1));
-  map_qos.transient_local().reliable();
-  static_pointcloud_map_publisher_ = node_->create_publisher<sensor_msgs::msg::PointCloud2>("/localization/static_pointcloud_map", map_qos);
 
   // 初始化tf广播器
   tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(node_);
@@ -165,16 +158,5 @@ void FusionFlow::PublishRegistrationTf() {
 
   tf_broadcaster_->sendTransform(transform_stamped);
   return;
-}
-
-void FusionFlow::PublishStaticPointcloudMap() {
-  CloudPtr map = fusion_ptr_->GetStaticPointcloudMap();
-
-  sensor_msgs::msg::PointCloud2 msg;
-  pcl::toROSMsg(*map, msg);
-  msg.header.frame_id = "map";
-  msg.header.stamp = node_->now();
-
-  static_pointcloud_map_publisher_->publish(msg);
 }
 } // namespace localization

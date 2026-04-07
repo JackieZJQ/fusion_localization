@@ -36,18 +36,17 @@ public:
 
   ~FusionFlow() = default;
 
-  void InitRosInterfaces();
-
   using Ptr = std::shared_ptr<localization::FusionFlow>;
 
 private:
+  void InitRosInterfaces();
+
   //传感器回调函数
   void ImuCallback(const sensor_msgs::msg::Imu::SharedPtr imu_msg_ptr);
   void GnssCallback(const sensor_msgs::msg::NavSatFix::SharedPtr gnss_msg_ptr);
   void CloudCallback(const sensor_msgs::msg::PointCloud2::SharedPtr cloud_msg_ptr);
 
   //发布rviz消息
-  void PublishStaticPointcloudMap();
   void PublishUndistortScan();
   void PublishRegistrationTf();
   void PublishRegistrationOdom();
@@ -59,7 +58,6 @@ private:
 
   // 发布定位数据
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr undistort_scan_publisher_;
-  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr static_pointcloud_map_publisher_;
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odometry_publisher_;
 
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;

@@ -73,8 +73,7 @@ CloudPtr TileManager::GetRefCloud() {
 CloudPtr TileManager::GetStaticPointcloudMap() {
   // 加载滤波后的全局点云地图，用于可视化，不用于定位
   // todo
-  // 1.全局点云图编号为555_555，修改地图编号逻辑
-  // 2.加载静态全局点云图为线程阻塞模式，修改为非线程阻塞模式
+  // 全局点云图编号为555_555，修改地图编号逻辑
   CloudPtr static_pointcloud_map = LoadTileFromDisk(Vec2i(555, 555));
 
   return static_pointcloud_map;

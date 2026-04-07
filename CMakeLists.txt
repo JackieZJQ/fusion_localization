@@ -28,6 +28,7 @@ find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(autoware_localization_msgs REQUIRED)
+
 find_package(message_filters REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
@@ -47,10 +48,12 @@ file(GLOB_RECURSE UTM_CONVERT_SRCS "*.cc")
 file(GLOB_RECURSE NODE_SRCS "src/app/fusion_node.cpp")
 file(GLOB_RECURSE INS_NODE_SRCS "src/app/ins_node.cpp")
 file(GLOB_RECURSE IMU_PRED_NODE_SRCS "src/app/imu_predictor_node.cpp")
+file(GLOB_RECURSE TILE_MANAGER_NODE_SRCS "src/app/tile_manager_node.cpp")
 
 list(REMOVE_ITEM ALL_SRCS ${NODE_SRCS})
 list(REMOVE_ITEM ALL_SRCS ${INS_NODE_SRCS})
-list(REMOVE_ITEM ALL_SRCS ${IMU_PRED_NODE_SRCS})  # ★ 新增
+list(REMOVE_ITEM ALL_SRCS ${IMU_PRED_NODE_SRCS}) 
+list(REMOVE_ITEM ALL_SRCS ${TILE_MANAGER_NODE_SRCS}) 
 list(FILTER ALL_SRCS EXCLUDE REGEX ".*/third_party/fast_gicp/.*")
 
 # fast_gicp 选项
@@ -116,6 +119,10 @@ add_executable(imu_predictor_node src/app/imu_predictor_node.cpp)
 ament_target_dependencies(imu_predictor_node rclcpp)
 target_link_libraries(imu_predictor_node fusion_localization_core)
 
+add_executable(tile_manager_node src/app/tile_manager_node.cpp)
+ament_target_dependencies(tile_manager_node rclcpp)
+target_link_libraries(tile_manager_node fusion_localization_core)
+
 # ---------------- install ----------------
 install(TARGETS fusion_localization_core
   EXPORT export_fusion_localization_core
@@ -123,7 +130,11 @@ install(TARGETS fusion_localization_core
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin)
 
-install(TARGETS fusion_localization_node ins_localization_node imu_predictor_node
+install(TARGETS 
+  fusion_localization_node 
+  ins_localization_node 
+  imu_predictor_node
+  tile_manager_node
   RUNTIME DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY launch

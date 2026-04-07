@@ -12,7 +12,7 @@
  * ************************************************************************
  */
 
-#include "models/extrapolator/imu_predictor.hpp"
+#include "extrapolator/imu_predictor.hpp"
 
 namespace localization {
 

@@ -19,9 +19,9 @@
 #include <execution>
 
 #include "models/kalmanfilter/eskf.hpp"
-#include "models/initialization/static_imu_init.hpp"
 #include "models/registration/registration_manager.hpp"
 #include "models/synchronization/measure_sync.hpp"
+#include "initialization/static_imu_init.hpp"
 
 #include "sensor_data/imu_data.hpp"
 #include "sensor_data/gnss_data.hpp"

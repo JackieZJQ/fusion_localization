@@ -26,7 +26,7 @@
 #include <nav_msgs/msg/path.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 
-#include "models/extrapolator/imu_predictor.hpp"
+#include "extrapolator/imu_predictor.hpp"
 
 namespace localization {
 

@@ -341,7 +341,7 @@ void Fusion::ProcessImu(IMU::Ptr imu) {
 
   // 2. 只有 kWORKING 状态才给 extrapolator
   //if (state_ != State::kWORKING) return;
-  //inertial_extrapolator_.PushImu(imu);  // ★ 取消注释！
+  //inertial_extrapolator_.PushImu(imu);  // 取消注释！
 }
 
 void Fusion::ProcessPointCloud(CLOUD::Ptr cloud) {
@@ -374,7 +374,7 @@ void Fusion::TransitionTo(State new_state) {
       break;
 
     case State::kINITIALIZED: {
-      // ★ SearchRtk 成功后，修正 eskf_ 的 current_time_
+      // SearchRtk 成功后，修正 eskf_ 的 current_time_
       auto nav = eskf_.GetNominalState();
       nav.timestamp_ = synced_measures_.lidar_end_time_;
       eskf_.SetX(nav, eskf_.GetGravity());
