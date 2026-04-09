@@ -3,7 +3,7 @@
  * 
  * @file tile_manager_flow.cpp
  * @author Zhang Jiaqi (zhangiaii97@gmail.com)
- * @brief 
+ * @brief 点云图块ROS收发
  * 
  * ************************************************************************
  * @copyright Copyright (c) 2026
@@ -24,7 +24,7 @@ namespace localization {
 TileManagerFlow::TileManagerFlow(const rclcpp::Node::SharedPtr& node)
   : node_(node) {
 
-  const std::string config_path = "/home/jackie/2026/localization/src/fusion_localization/config/localization_robosense.yaml";
+  const std::string config_path = "/home/jackie/2026/localization/src/localization/config/localization_robosense.yaml";
   auto yaml = YAML::LoadFile(config_path);
 
   tile_manager_ptr_ = std::make_shared<TileManager>(yaml);

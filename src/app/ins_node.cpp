@@ -125,7 +125,7 @@ int main(int argc, char **argv) {
   rclcpp::init(argc, argv);
 
   // 加载yaml配置文件
-  std::string yaml_path = "/home/jackie/2026/localization/src/fusion_localization/config/localization_robosense.yaml";
+  std::string yaml_path = "/home/jackie/2026/localization/src/localization/config/localization_robosense.yaml";
   auto yaml = YAML::LoadFile(yaml_path);
 
   auto beidou_sync_node = std::make_shared<SyncImuGPS>("beidou_sync_node", yaml);

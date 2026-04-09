@@ -8,7 +8,7 @@ def generate_launch_description():
     # RViz 配置
     rviz_config_arg = DeclareLaunchArgument(
         'rviz_config',
-        default_value='/home/jackie/robobus_localization/fusion_localization_ws/src/fusion_localization/rviz/default.rviz',
+        default_value='/home/jackie/2026/localization/src/localization/rviz/default.rviz',
         description='Path to an RViz config file (.rviz). Leave empty to use default RViz layout.'
     )
     rviz_config = LaunchConfiguration('rviz_config')
@@ -22,7 +22,7 @@ def generate_launch_description():
     bag_path = LaunchConfiguration('bag_path')
 
     fusion_node = Node(
-        package='fusion_localization',  
+        package='localization',  
         executable='fusion_localization_node',    
         name='fusion_localization_node',
         output='screen',
@@ -30,7 +30,7 @@ def generate_launch_description():
     
     #IMU 预测节点（独立进程）
     imu_predictor_node = Node(
-        package='fusion_localization',
+        package='localization',
         executable='imu_predictor_node',
         name='imu_predictor_node',
         output='screen',
@@ -38,7 +38,7 @@ def generate_launch_description():
     
     #点云管理节点
     tile_manager_node = Node(
-        package='fusion_localization',
+        package='localization',
         executable='tile_manager_node',
         name='tile_manager_node',
         output='screen',

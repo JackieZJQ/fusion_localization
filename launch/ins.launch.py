@@ -11,7 +11,7 @@ def generate_launch_description():
     )
 
     ins_localization_node = Node(
-        package='fusion_localization',
+        package='localization',
         executable='ins_localization_node',
         name='ins_localization_node',
         output='screen',

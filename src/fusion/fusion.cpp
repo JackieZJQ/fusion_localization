@@ -56,7 +56,7 @@ bool Fusion::InitImu() {
     return true;
   } else {
     InitImuOffline();
-    // ★ 离线初始化完成，直接切状态
+    // 离线初始化完成，直接切状态
     TransitionTo(State::kWAITING_FOR_RTK);
     return true;
   }
@@ -140,7 +140,7 @@ void Fusion::InitImuOffline() {
   options.update_bias_gyro_ = false;
   eskf_.SetInitialConditions(options, init_bg, init_ba, gravity);
 
-  // ★ 删掉 imu_need_init_ = false; 状态转换由调用方负责
+  // 删掉 imu_need_init_ = false; 状态转换由调用方负责
 
   LOG(INFO) << "\n===============使用YAML初始化IMU成功========================\n"
             << "Init Bg: " << init_bg.transpose() << "\n"

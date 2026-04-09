@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
   rclcpp::init(argc, argv);
 
   auto node = std::make_shared<rclcpp::Node>("tile_manager_node");
-  auto tile_manager_node = std::make_shared<localization::TileManagerFlow>(node);
+  //auto tile_manager_node = std::make_shared<localization::TileManagerFlow>(node);
 
   // 多线程执行器，允许地图发布等与传感器回调并行
   rclcpp::executors::SingleThreadedExecutor exec;

@@ -3,7 +3,7 @@
  * 
  * @file tile_flow.hpp
  * @author Zhang Jiaqi (zhangiaii97@gmail.com)
- * @brief 点云块服务端
+ * @brief 点云图块ROS收发
  * 
  * ************************************************************************
  * @copyright Copyright (c) 2026

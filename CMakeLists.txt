@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(fusion_localization)
+project(localization)
 
 # 允许 *_ROOT 变量，并让子目录沿用
 if(POLICY CMP0074)
@@ -28,7 +28,6 @@ find_package(sensor_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(autoware_localization_msgs REQUIRED)
-
 find_package(message_filters REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
@@ -64,12 +63,12 @@ set(BUILD_VGICP_CUDA OFF CACHE BOOL "" FORCE)
 add_subdirectory(${PROJECT_SOURCE_DIR}/third_party/fast_gicp)
 
 # ---------------- core library ----------------
-add_library(fusion_localization_core SHARED
+add_library(localization_core SHARED
   ${ALL_SRCS}
   ${UTM_CONVERT_SRCS}
 )
 
-target_include_directories(fusion_localization_core PUBLIC
+target_include_directories(localization_core PUBLIC
   ${PROJECT_SOURCE_DIR}
   ${PROJECT_SOURCE_DIR}/src
   ${PROJECT_SOURCE_DIR}/third_party
@@ -81,7 +80,7 @@ target_include_directories(fusion_localization_core PUBLIC
   ${PCL_INCLUDE_DIRS}
 )
 
-ament_target_dependencies(fusion_localization_core
+ament_target_dependencies(localization_core
   rclcpp
   std_msgs
   nav_msgs
@@ -96,7 +95,7 @@ ament_target_dependencies(fusion_localization_core
   pcl_conversions
 )
 
-target_link_libraries(fusion_localization_core
+target_link_libraries(localization_core
   ${PCL_LIBRARIES}
   ${GLOG_LIBRARIES}
   ${OpenCV_LIBS}
@@ -109,23 +108,23 @@ target_link_libraries(fusion_localization_core
 # ---------------- nodes ----------------
 add_executable(fusion_localization_node src/app/fusion_node.cpp)
 ament_target_dependencies(fusion_localization_node rclcpp)
-target_link_libraries(fusion_localization_node fusion_localization_core)
+target_link_libraries(fusion_localization_node localization_core)
 
 add_executable(ins_localization_node src/app/ins_node.cpp)
 ament_target_dependencies(ins_localization_node rclcpp)
-target_link_libraries(ins_localization_node fusion_localization_core)
+target_link_libraries(ins_localization_node localization_core)
 
 add_executable(imu_predictor_node src/app/imu_predictor_node.cpp)
 ament_target_dependencies(imu_predictor_node rclcpp)
-target_link_libraries(imu_predictor_node fusion_localization_core)
+target_link_libraries(imu_predictor_node localization_core)
 
 add_executable(tile_manager_node src/app/tile_manager_node.cpp)
 ament_target_dependencies(tile_manager_node rclcpp)
-target_link_libraries(tile_manager_node fusion_localization_core)
+target_link_libraries(tile_manager_node localization_core)
 
 # ---------------- install ----------------
-install(TARGETS fusion_localization_core
-  EXPORT export_fusion_localization_core
+install(TARGETS localization_core
+  EXPORT export_localization_core
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin)

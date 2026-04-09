@@ -20,19 +20,20 @@ FusionFlow::FusionFlow(const rclcpp::Node::SharedPtr& node)
   
   //todo
   //yaml文件的地址写入cmakelists文件
-  const std::string config_path = "/home/jackie/2026/localization/src/fusion_localization/config/localization_robosense.yaml";
+  const std::string config_path = "/home/jackie/2026/localization/src/localization/config/localization_robosense.yaml";
   auto yaml = YAML::LoadFile(config_path);
 
   fusion_ptr_ = std::make_shared<Fusion>(yaml);
   cloud_converter_ptr_ = std::make_shared<CloudConvert>(yaml);
 
-  //NEW创建回调组
-  sensor_callback_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
-
   InitRosInterfaces();
 }
 
 void FusionFlow::InitRosInterfaces() {
+
+  // NEW创建回调组
+  sensor_callback_group_ = node_->create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+
   // GNSS/LIDAR 回调组（共用同一 MutuallyExclusive 回调组，串行处理）
   rclcpp::SubscriptionOptions sensor_opts;
   sensor_opts.callback_group = sensor_callback_group_;

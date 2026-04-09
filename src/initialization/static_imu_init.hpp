@@ -47,7 +47,7 @@ public:
   bool InitSuccess() const; //判定初始化是否成功
 
   //获取各Cov, bias, gravity
-  Vec3d GetCovGyro() const; 
+  Vec3d GetCovGyro() const;  
   Vec3d GetCovAcce() const;
   Vec3d GetInitBg() const;
   Vec3d GetInitBa() const;
